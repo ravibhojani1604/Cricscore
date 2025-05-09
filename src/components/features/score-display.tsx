@@ -17,6 +17,7 @@ interface ScoreDisplayProps {
   offStrikeBatterName?: string;
   offStrikeBatterRuns?: number;
   offStrikeBatterBalls?: number;
+  maxOvers: number; // Added maxOvers
 }
 
 export const ScoreDisplay: FC<ScoreDisplayProps> = ({ 
@@ -33,6 +34,7 @@ export const ScoreDisplay: FC<ScoreDisplayProps> = ({
   offStrikeBatterName,
   offStrikeBatterRuns,
   offStrikeBatterBalls,
+  maxOvers,
 }) => {
   return (
     <Card className={`shadow-lg transition-all duration-300 ${isBatting ? 'border-2 border-accent ring-2 ring-accent/50 scale-105' : 'border'}`}>
@@ -48,6 +50,9 @@ export const ScoreDisplay: FC<ScoreDisplayProps> = ({
             </span>
           }
         </CardTitle>
+         <CardDescription className="text-xs pt-1">
+          Max {maxOvers} overs innings
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className={`text-5xl font-extrabold ${isBatting ? 'text-accent' : 'text-primary'}`}>

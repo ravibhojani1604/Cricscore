@@ -56,9 +56,13 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
   
   const overallControlsDisabled = disabled || isOverInProgress; 
   
-  const existingBowlerIsLastOverBowler = bowlers.find(b => b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase())?.id === lastBowlerWhoCompletedOverId;
+  const existingBowlerIfInputMatches = bowlers.find(b => b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase());
+  const existingBowlerIsLastOverBowler = !!existingBowlerIfInputMatches && existingBowlerIfInputMatches.id === lastBowlerWhoCompletedOverId;
+  
+  const cannotAddMoreNewBowlers = bowlers.length >= maxBowlersToList && !existingBowlerIfInputMatches;
+
   const addOrSelectDisabled = overallControlsDisabled || 
-    (bowlers.length >= maxBowlersToList && !bowlers.find(b => b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase())) ||
+    cannotAddMoreNewBowlers ||
     (!!lastBowlerWhoCompletedOverId && existingBowlerIsLastOverBowler);
 
 
@@ -72,13 +76,9 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
 
   const handleSetNewBowler = () => {
     if (newBowlerNameInput.trim()) {
-      const existingBowler = bowlers.find(b => b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase());
-      if (existingBowler && existingBowler.id === lastBowlerWhoCompletedOverId) {
-        // This check is redundant due to addOrSelectDisabled but good for clarity / direct call
-        // Toast is handled in page.tsx's handler
-        onAddOrSelectBowlerByName(newBowlerNameInput.trim()); 
-        return;
-      }
+      // The core logic for adding vs selecting, and consecutive bowler checks,
+      // is handled in page.tsx's onAddOrSelectBowlerByName.
+      // This component just passes the name.
       onAddOrSelectBowlerByName(newBowlerNameInput.trim());
       setNewBowlerNameInput('');
     }
@@ -119,7 +119,7 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
         <CardTitle className="text-xl flex items-center gap-2">
           <UserCog className="text-primary h-6 w-6" /> Bowler Management ({fieldingTeamName})
         </CardTitle>
-        <CardDescription>Select, add, or edit the current bowler. Only {maxBowlersToList} bowler at a time. The same bowler cannot bowl consecutive overs.</CardDescription>
+        <CardDescription>Select or add bowler (max {maxBowlersToList} for the team). The same bowler cannot bowl consecutive overs.</CardDescription>
          {!currentBowlerId && !disabled && !isOverInProgress && (
              <Alert variant="destructive" className="mt-2">
                 <AlertTriangle className="h-4 w-4" />
@@ -162,7 +162,7 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
                     title={
                         isOverInProgress ? "Cannot change bowler during an over." : 
                         (existingBowlerIsLastOverBowler ? "This bowler cannot bowl consecutive overs." :
-                        (bowlers.length >= maxBowlersToList && !bowlers.find(b=>b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase())) ? `Max ${maxBowlersToList} bowlers allowed.` : 
+                        (cannotAddMoreNewBowlers) ? `Max ${maxBowlersToList} bowlers allowed in team list.` : 
                         "Set or Add Bowler")
                     }
                     className="shadow-sm"
@@ -170,14 +170,9 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
                   <UserPlus className="mr-2 h-4 w-4" /> Set/Add
                 </Button>
               </div>
-               {bowlers.length >= maxBowlersToList && !currentBowlerId && !overallControlsDisabled && (
+               {bowlers.length >= maxBowlersToList && !existingBowlerIfInputMatches && !overallControlsDisabled && (
                 <p className="text-xs text-muted-foreground px-1">
-                    Maximum {maxBowlersToList} bowler(s) allowed for {fieldingTeamName}. Current: {bowlers.map(b => b.name).join(', ')}.
-                </p>
-               )}
-               {bowlers.length >= maxBowlersToList && currentBowlerId && !overallControlsDisabled && (
-                <p className="text-xs text-muted-foreground px-1">
-                    Current bowler: {currentBowler?.name}. Replace current by typing a new name if needed.
+                    Maximum {maxBowlersToList} bowlers reached for {fieldingTeamName}.
                 </p>
                )}
             </div>
