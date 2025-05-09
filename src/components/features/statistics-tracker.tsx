@@ -10,13 +10,13 @@ interface StatisticsTrackerProps {
   wickets: number;
   extras: number;
   target?: number; 
+  maxOvers: number;
 }
 
-export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, balls, wickets, extras, target }) => {
+export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, balls, wickets, extras, target, maxOvers }) => {
   const totalBallsPlayed = overs * 6 + balls;
   const runRate = totalBallsPlayed > 0 ? (runs / totalBallsPlayed) * 6 : 0;
-  const MAX_OVERS = 20; 
-  const ballsRemainingInMatch = MAX_OVERS * 6 - totalBallsPlayed; // Total balls remaining in the match for current innings
+  const ballsRemainingInMatch = maxOvers * 6 - totalBallsPlayed;
 
   let requiredRunRate: number | string | null = null;
   if (target && ballsRemainingInMatch > 0) {
@@ -27,7 +27,7 @@ export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, bal
       requiredRunRate = ((runsNeededToWin / ballsRemainingInMatch) * 6).toFixed(2);
     }
   } else if (target && runs < target && ballsRemainingInMatch <=0) {
-      requiredRunRate = "N/A"; // No balls left but target not met
+      requiredRunRate = "N/A"; 
   }
 
 
@@ -51,7 +51,9 @@ export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, bal
         <CardTitle className="text-xl flex items-center gap-2">
           <BarChart3 className="text-primary h-6 w-6" /> Match Statistics
         </CardTitle>
-        <CardDescription>Key performance indicators for the current innings.</CardDescription>
+        <CardDescription>
+          Key performance indicators for the current innings. (Max {maxOvers} overs per innings)
+        </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatItem icon={TrendingUp} label="Run Rate" value={runRate.toFixed(2)} unit="RPO" />
@@ -82,7 +84,7 @@ export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, bal
                     label="Req. Rate" 
                     value={requiredRunRate} 
                     unit={typeof requiredRunRate === 'string' && requiredRunRate !== "Achieved" && requiredRunRate !== "N/A" ? "RPO" : ""}
-                    valueClassName={requiredRunRate === "Achieved" ? "text-green-600" : "text-accent"} />
+                    valueClassName={requiredRunRate === "Achieved" ? "text-green-600" : requiredRunRate === "N/A" ? "text-muted-foreground" : "text-accent"} />
             )}
           </>
         )}

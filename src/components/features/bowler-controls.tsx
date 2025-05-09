@@ -24,6 +24,7 @@ interface Bowler {
 interface BowlerControlsProps {
   bowlers: Bowler[];
   currentBowlerId: string | null;
+  lastBowlerWhoCompletedOverId: string | null;
   onAddOrSelectBowlerByName: (name: string) => void;
   onSetCurrentBowlerById: (id: string) => void;
   onEditBowlerName: (bowlerId: string, newName: string) => void;
@@ -37,6 +38,7 @@ interface BowlerControlsProps {
 export const BowlerControls: FC<BowlerControlsProps> = ({
   bowlers,
   currentBowlerId,
+  lastBowlerWhoCompletedOverId,
   onAddOrSelectBowlerByName,
   onSetCurrentBowlerById,
   onEditBowlerName,
@@ -53,7 +55,11 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
   const currentBowler = bowlers.find(b => b.id === currentBowlerId);
   
   const overallControlsDisabled = disabled || isOverInProgress; 
-  const addOrSelectDisabled = overallControlsDisabled || (bowlers.length >= maxBowlersToList && !bowlers.find(b => b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase()));
+  
+  const existingBowlerIsLastOverBowler = bowlers.find(b => b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase())?.id === lastBowlerWhoCompletedOverId;
+  const addOrSelectDisabled = overallControlsDisabled || 
+    (bowlers.length >= maxBowlersToList && !bowlers.find(b => b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase())) ||
+    (!!lastBowlerWhoCompletedOverId && existingBowlerIsLastOverBowler);
 
 
   useEffect(() => {
@@ -66,6 +72,13 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
 
   const handleSetNewBowler = () => {
     if (newBowlerNameInput.trim()) {
+      const existingBowler = bowlers.find(b => b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase());
+      if (existingBowler && existingBowler.id === lastBowlerWhoCompletedOverId) {
+        // This check is redundant due to addOrSelectDisabled but good for clarity / direct call
+        // Toast is handled in page.tsx's handler
+        onAddOrSelectBowlerByName(newBowlerNameInput.trim()); 
+        return;
+      }
       onAddOrSelectBowlerByName(newBowlerNameInput.trim());
       setNewBowlerNameInput('');
     }
@@ -106,8 +119,8 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
         <CardTitle className="text-xl flex items-center gap-2">
           <UserCog className="text-primary h-6 w-6" /> Bowler Management ({fieldingTeamName})
         </CardTitle>
-        <CardDescription>Select, add, or edit the current bowler. Only {maxBowlersToList} bowler at a time.</CardDescription>
-         {!currentBowlerId && !disabled && (
+        <CardDescription>Select, add, or edit the current bowler. Only {maxBowlersToList} bowler at a time. The same bowler cannot bowl consecutive overs.</CardDescription>
+         {!currentBowlerId && !disabled && !isOverInProgress && (
              <Alert variant="destructive" className="mt-2">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Action Required</AlertTitle>
@@ -148,8 +161,9 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
                     aria-label="Set or Add Bowler"
                     title={
                         isOverInProgress ? "Cannot change bowler during an over." : 
+                        (existingBowlerIsLastOverBowler ? "This bowler cannot bowl consecutive overs." :
                         (bowlers.length >= maxBowlersToList && !bowlers.find(b=>b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase())) ? `Max ${maxBowlersToList} bowlers allowed.` : 
-                        "Set or Add Bowler"
+                        "Set or Add Bowler")
                     }
                     className="shadow-sm"
                 >
@@ -163,7 +177,7 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
                )}
                {bowlers.length >= maxBowlersToList && currentBowlerId && !overallControlsDisabled && (
                 <p className="text-xs text-muted-foreground px-1">
-                    Current bowler: {currentBowler?.name}. Clear to add a new one if needed.
+                    Current bowler: {currentBowler?.name}. Replace current by typing a new name if needed.
                 </p>
                )}
             </div>
@@ -187,8 +201,12 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
                   </SelectTrigger>
                   <SelectContent>
                     {bowlers.map((bowler) => (
-                      <SelectItem key={bowler.id} value={bowler.id}>
-                        {bowler.name}
+                      <SelectItem 
+                        key={bowler.id} 
+                        value={bowler.id}
+                        disabled={bowler.id === lastBowlerWhoCompletedOverId}
+                      >
+                        {bowler.name} {bowler.id === lastBowlerWhoCompletedOverId ? "(Bowled last over)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>
