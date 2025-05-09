@@ -25,7 +25,7 @@ interface BatterControlsProps {
   onAddBatter: (name: string) => void;
   onSelectBatter: (position: 'onStrike' | 'offStrike', batterId: string) => void;
   onSwapStrike: () => void;
-  disabled: boolean;
+  disabled: boolean; // Overall disabled state from parent (innings over, match over, etc.)
 }
 
 export const BatterControls: FC<BatterControlsProps> = ({
@@ -51,6 +51,13 @@ export const BatterControls: FC<BatterControlsProps> = ({
   const onStrikeBatter = batters.find(b => b.id === onStrikeBatterId);
   const offStrikeBatter = batters.find(b => b.id === offStrikeBatterId);
 
+  const maxBattersReached = batters.length >= 11;
+  const twoBattersActive = onStrikeBatterId !== null && offStrikeBatterId !== null;
+  const canAddBatterToList = !disabled && !maxBattersReached && !twoBattersActive;
+
+  const addBatterInputDisabled = disabled || maxBattersReached || twoBattersActive;
+  const addBatterButtonDisabled = addBatterInputDisabled || !newBatterNameInput.trim();
+
   return (
     <Card>
       <CardHeader>
@@ -67,14 +74,25 @@ export const BatterControls: FC<BatterControlsProps> = ({
               placeholder="Enter batter's name"
               value={newBatterNameInput}
               onChange={(e) => setNewBatterNameInput(e.target.value)}
-              disabled={disabled || batters.length >= 11}
+              disabled={addBatterInputDisabled}
               className="flex-grow"
             />
-            <Button onClick={handleAddNewBatter} disabled={disabled || !newBatterNameInput.trim() || batters.length >= 11} aria-label="Add New Batter">
+            <Button 
+              onClick={handleAddNewBatter} 
+              disabled={addBatterButtonDisabled} 
+              aria-label="Add New Batter"
+            >
               <UserPlus className="mr-2 h-4 w-4" /> Add Batter
             </Button>
           </div>
-           {batters.length >= 11 && <p className="text-xs text-muted-foreground">Maximum 11 batters reached.</p>}
+           {maxBattersReached && (
+            <p className="text-xs text-muted-foreground">Maximum 11 batters reached for {battingTeamName}.</p>
+           )}
+           {!disabled && !maxBattersReached && twoBattersActive && (
+            <p className="text-xs text-muted-foreground">
+              Two batters are currently active. Add new batters to the lineup after a wicket or if a slot is free.
+            </p>
+           )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -130,7 +148,7 @@ export const BatterControls: FC<BatterControlsProps> = ({
           <Shuffle className="mr-2 h-4 w-4" /> Swap Strike
         </Button>
 
-        {(!onStrikeBatterId || (batters.filter(b => !b.isOut).length > 0 && !offStrikeBatterId && onStrikeBatterId)) && !disabled && (
+        {(!onStrikeBatterId || (availableBatters.length > 1 && !offStrikeBatterId && onStrikeBatterId)) && !disabled && (
              <p className="text-sm text-destructive flex items-center gap-1">
                 <AlertTriangle className="h-4 w-4" />
                 { !onStrikeBatterId && "Select a batter for the strike position."}
@@ -153,5 +171,3 @@ export const BatterControls: FC<BatterControlsProps> = ({
     </Card>
   );
 };
-
-    
