@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { UserPlus, ListChecks, Edit3, Save, XCircle } from 'lucide-react';
+import { UserPlus, ListChecks, Edit3, Save, XCircle, AlertTriangle } from 'lucide-react';
 
 interface Bowler {
   id: string;
@@ -27,6 +27,7 @@ interface BowlerControlsProps {
   onEditBowlerName: (bowlerId: string, newName: string) => void;
   disabled: boolean;
   fieldingTeamName: string;
+  isBowlerEditable: boolean;
 }
 
 export const BowlerControls: FC<BowlerControlsProps> = ({
@@ -37,6 +38,7 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
   onEditBowlerName,
   disabled,
   fieldingTeamName,
+  isBowlerEditable,
 }) => {
   const [newBowlerNameInput, setNewBowlerNameInput] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
@@ -47,10 +49,10 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
   useEffect(() => {
     if (currentBowler && isEditingName) {
       setEditableName(currentBowler.name);
-    } else if (!currentBowler) {
-      setIsEditingName(false); // If current bowler becomes null (e.g. over completed), exit edit mode
+    } else if (!currentBowler || !isBowlerEditable) {
+      setIsEditingName(false); 
     }
-  }, [currentBowler, isEditingName]);
+  }, [currentBowler, isEditingName, isBowlerEditable]);
 
   const handleSetNewBowler = () => {
     if (newBowlerNameInput.trim()) {
@@ -60,14 +62,14 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
   };
 
   const handleEditClick = () => {
-    if (currentBowler) {
+    if (currentBowler && isBowlerEditable) {
       setEditableName(currentBowler.name);
       setIsEditingName(true);
     }
   };
 
   const handleSaveName = () => {
-    if (currentBowlerId && editableName.trim()) {
+    if (currentBowlerId && editableName.trim() && isBowlerEditable) {
       onEditBowlerName(currentBowlerId, editableName.trim());
       setIsEditingName(false);
     }
@@ -85,6 +87,12 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
       <CardHeader>
         <CardTitle className="text-xl">Bowler Management ({fieldingTeamName})</CardTitle>
         <CardDescription>Select, add, or edit the current bowler.</CardDescription>
+         {!currentBowlerId && !disabled && (
+             <p className="text-sm text-destructive flex items-center gap-1 pt-1">
+                <AlertTriangle className="h-4 w-4" />
+                Select a bowler to start scoring.
+             </p>
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
         {!isEditingName && (
@@ -137,7 +145,13 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
             <p className="text-sm font-medium text-primary">
               Current Bowler: <span className="font-bold">{currentBowler.name}</span>
             </p>
-            <Button onClick={handleEditClick} variant="outline" size="sm" disabled={disabled}>
+            <Button 
+              onClick={handleEditClick} 
+              variant="outline" 
+              size="sm" 
+              disabled={disabled || !isBowlerEditable}
+              title={!isBowlerEditable ? "Cannot edit bowler name after they've started bowling an over." : "Edit bowler name"}
+            >
               <Edit3 className="mr-1 h-3 w-3" /> Edit Name
             </Button>
           </div>
@@ -151,28 +165,22 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
               type="text"
               value={editableName}
               onChange={(e) => setEditableName(e.target.value)}
-              disabled={disabled}
+              disabled={disabled || !isBowlerEditable}
               className="mb-2"
             />
             <div className="flex space-x-2 justify-end">
-              <Button onClick={handleCancelEdit} variant="ghost" size="sm">
+              <Button onClick={handleCancelEdit} variant="ghost" size="sm" disabled={!isBowlerEditable}>
                 <XCircle className="mr-1 h-4 w-4" /> Cancel
               </Button>
-              <Button onClick={handleSaveName} size="sm" disabled={disabled || !editableName.trim()}>
+              <Button onClick={handleSaveName} size="sm" disabled={disabled || !editableName.trim() || !isBowlerEditable}>
                 <Save className="mr-1 h-4 w-4" /> Save Name
               </Button>
             </div>
+             {!isBowlerEditable && <p className="text-xs text-muted-foreground">Bowler name cannot be edited once they have started bowling an over.</p>}
           </div>
         )}
 
-         {!currentBowlerId && !disabled && !isEditingName && (
-          <p className="text-sm text-muted-foreground">
-            No bowler currently selected. Scores will not be attributed to a bowler.
-          </p>
-        )}
       </CardContent>
     </Card>
   );
 };
-
-    

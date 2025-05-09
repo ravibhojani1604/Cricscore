@@ -179,7 +179,7 @@ export default function CricketPage() {
         }
     }
     setCanUndo(false);
-  }, [fieldingTeam.bowlers, addCommentary, currentBowlerId, setCurrentBowlerId, setBallsByCurrentBowlerThisSpell, setRunsOffBatAgainstCurrentBowlerThisSpell]);
+  }, [fieldingTeam.bowlers, addCommentary, currentBowlerId, fieldingTeam.name, setCurrentBowlerId, setBallsByCurrentBowlerThisSpell, setRunsOffBatAgainstCurrentBowlerThisSpell]);
 
   const handleEditBowlerName = useCallback((bowlerIdToEdit: string, newName: string) => {
     if (!newName.trim()) {
@@ -422,7 +422,9 @@ export default function CricketPage() {
     const isScoringActionWithoutUndoYet = !lastActionState || 
       (lastActionState.teamState.runs === currentBattingTeam.runs && 
        lastActionState.teamState.wickets === currentBattingTeam.wickets &&
-       lastActionState.onStrikeBatterId === onStrikeBatterId); // Check if batter state also same
+       lastActionState.onStrikeBatterId === onStrikeBatterId && // Check if batter state also same
+       lastActionState.teamState.batters.find(b => b.id === onStrikeBatterId)?.ballsFaced === currentBattingTeam.batters.find(b=> b.id === onStrikeBatterId)?.ballsFaced);
+
 
     if (isLegalDelivery && isScoringActionWithoutUndoYet) { 
         const commentaryId = addCommentary("", true); 
@@ -595,7 +597,7 @@ export default function CricketPage() {
         }));
       }
       setBattingTeamKey('team2'); 
-      addCommentary(`--- Innings Break: ${previousBattingTeamName} scored ${currentBattingTeam.runs}/${currentBattingTeam.wickets}. ${nextBattingTeamObject.name} to bat. ---`, false);
+      addCommentary(`--- Innings Break: ${previousBattingTeamName} scored ${currentBattingTeam.runs}/${currentBattingTeam.wickets}. ${nextBattingTeamObject.name} to bat. Target: ${currentBattingTeam.runs + 1} ---`, false);
       toast({ title: "Innings Changed", description: `${nextBattingTeamObject.name} are now batting. ${team1.name} will field.`});
     } else { 
       const gameFinished = team2.runs !== -1 && (team2.wickets >= MAX_WICKETS || team2.overs >= MAX_OVERS || (isTeam1AllOutOrOversDone && team2.runs > team1.runs));
@@ -603,9 +605,13 @@ export default function CricketPage() {
         addCommentary(`--- Match Concluded ---`, false);
         toast({ title: "Match Concluded", description: "Review scores for the result."});
       } else {
-        setBattingTeamKey('team1');
-        addCommentary(`--- Innings Break: ${previousBattingTeamName} scored ${currentBattingTeam.runs}/${currentBattingTeam.wickets}. ${nextBattingTeamObject.name} to bat. ---`, false);
-        toast({ title: "Innings Changed", description: `${nextBattingTeamObject.name} are now batting. ${team2.name} will field.`});
+        // This case (switching from team2 to team1) should ideally only happen if team1 is chasing
+        // or if it's a multi-innings game, which is not the current setup.
+        // For a simple T20, this would mean game over.
+        // Adding a safeguard or more complex logic for other formats would be needed here.
+        addCommentary(`--- Innings Break: ${previousBattingTeamName} scored ${currentBattingTeam.runs}/${currentBattingTeam.wickets}. ---`, false);
+        toast({ title: "Innings Changed", description: `Something unexpected happened or match concluded.`});
+
       }
     }
     setCurrentBowlerId(null);
@@ -626,20 +632,19 @@ export default function CricketPage() {
   let matchResultText = "";
 
   if (battingTeamKey === 'team1') { 
-    if (isTeam1AllOutOrOversDone && team2.runs > -1 && isTeam2AllOutOrOversDone) { // Both innings complete
-        matchEnded = true;
-        if (team2.runs > team1.runs) matchResultText = `${team2.name} won by ${team2.runs - team1.runs} runs.`;
-        else if (team1.runs > team2.runs) matchResultText = `${team1.name} won by ${team1.runs - team2.runs} runs.`;
-        else matchResultText = "Match Tied!";
-    }
+      // If team1 finishes batting and team2 has already batted and has a score
+      if (isTeam1AllOutOrOversDone && team2.runs > -1) { 
+          matchEnded = true;
+          if (team1.runs > team2.runs) matchResultText = `${team1.name} won by ${team1.runs - team2.runs} runs.`;
+          else if (team2.runs > team1.runs) matchResultText = `${team2.name} won by ${team2.runs - team1.runs} runs.`;
+          else matchResultText = "Match Tied!";
+      }
   } else { // Team Bravo (team2) is batting or just finished
     if (isTeam2AllOutOrOversDone) { 
         matchEnded = true;
         if (team2.runs > team1.runs) {
             matchResultText = `${team2.name} won by ${team2.runs - team1.runs} runs.`;
         } else if (team1.runs > team2.runs) {
-            // This case implies team 1 won by runs if team 2 is all out for less.
-            // If team 1 was chasing and won by wickets, that's handled below.
             matchResultText = `${team1.name} won by ${team1.runs - team2.runs} runs.`;
         } else { 
             matchResultText = "Match Tied!";
@@ -683,9 +688,13 @@ export default function CricketPage() {
                 balls={team1.balls}
                 isBatting={battingTeamKey === 'team1'}
                 onStrikeBatterName={battingTeamKey === 'team1' ? onStrikeBatter?.name : undefined}
+                onStrikeBatterRuns={battingTeamKey === 'team1' ? onStrikeBatter?.runsScored : undefined}
+                onStrikeBatterBalls={battingTeamKey === 'team1' ? onStrikeBatter?.ballsFaced : undefined}
                 offStrikeBatterName={battingTeamKey === 'team1' ? offStrikeBatter?.name : undefined}
+                offStrikeBatterRuns={battingTeamKey === 'team1' ? offStrikeBatter?.runsScored : undefined}
+                offStrikeBatterBalls={battingTeamKey === 'team1' ? offStrikeBatter?.ballsFaced : undefined}
               />
-              {(team2.runs !== -1 || matchEnded) && (
+              {(team2.runs !== -1 || matchEnded || battingTeamKey === 'team2') && (
                 <ScoreDisplay 
                   teamName={team2.name}
                   runs={team2.runs === -1 ? 0 : team2.runs}
@@ -694,7 +703,11 @@ export default function CricketPage() {
                   balls={team2.balls}
                   isBatting={battingTeamKey === 'team2'}
                   onStrikeBatterName={battingTeamKey === 'team2' ? onStrikeBatter?.name : undefined}
+                  onStrikeBatterRuns={battingTeamKey === 'team2' ? onStrikeBatter?.runsScored : undefined}
+                  onStrikeBatterBalls={battingTeamKey === 'team2' ? onStrikeBatter?.ballsFaced : undefined}
                   offStrikeBatterName={battingTeamKey === 'team2' ? offStrikeBatter?.name : undefined}
+                  offStrikeBatterRuns={battingTeamKey === 'team2' ? offStrikeBatter?.runsScored : undefined}
+                  offStrikeBatterBalls={battingTeamKey === 'team2' ? offStrikeBatter?.ballsFaced : undefined}
                 />
               )}
             </div>
@@ -704,7 +717,7 @@ export default function CricketPage() {
               overs={currentBattingTeam.overs} 
               balls={currentBattingTeam.balls} 
               wickets={currentBattingTeam.wickets}
-              target={battingTeamKey === 'team2' && team1.runs > -1 && !isTeam1AllOutOrOversDone ? undefined : (battingTeamKey === 'team2' && team1.runs > -1 ? team1.runs + 1 : undefined)}
+              target={battingTeamKey === 'team2' && team1.runs > -1 ? team1.runs + 1 : undefined}
             />
             
             {!inningsEnded && !matchEnded ? (
@@ -717,6 +730,7 @@ export default function CricketPage() {
                   onEditBowlerName={handleEditBowlerName}
                   disabled={inningsEnded || matchEnded}
                   fieldingTeamName={fieldingTeam.name}
+                  isBowlerEditable={!!currentBowlerId && ballsByCurrentBowlerThisSpell === 0 && !inningsEnded && !matchEnded}
                 />
                 <BatterControls
                   battingTeamName={currentBattingTeam.name}
@@ -747,6 +761,7 @@ export default function CricketPage() {
                     {matchEnded ? (matchResultText || "Match Concluded") : `Innings Over for ${currentBattingTeam.name}!`}
                 </p>
                 {!matchEnded && <p>Score: {currentBattingTeam.runs}/{currentBattingTeam.wickets} in {currentBattingTeam.overs}.{currentBattingTeam.balls} overs.</p>}
+                 {matchEnded && matchResultText && <p>{matchResultText}</p>}
               </div>
             )}
           </div>
@@ -757,7 +772,7 @@ export default function CricketPage() {
                 teamName={currentBattingTeam.name}
                 onStrikeBatterId={onStrikeBatterId}
              />
-             <BowlingStatsDisplay bowlers={fieldingTeam.bowlers} teamName={fieldingTeam.name} />
+             <BowlingStatsDisplay bowlers={fieldingTeam.bowlers} teamName={fieldingTeam.name} currentBowlerId={currentBowlerId} />
             <LiveCommentaryFeed
               commentaryLog={commentaryLog}
               onAddManualCommentary={handleAddManualCommentary}
@@ -772,5 +787,3 @@ export default function CricketPage() {
     </div>
   );
 }
-
-    

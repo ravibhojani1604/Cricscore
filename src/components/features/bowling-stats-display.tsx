@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ShieldCheck } from 'lucide-react';
 
 interface Bowler {
-  id: string; // Added ID
+  id: string; 
   name: string;
   totalBallsBowled: number;
   maidens: number;
@@ -26,6 +26,7 @@ interface Bowler {
 interface BowlingStatsDisplayProps {
   bowlers: Bowler[];
   teamName: string;
+  currentBowlerId: string | null;
 }
 
 const formatOvers = (totalBalls: number): string => {
@@ -40,7 +41,7 @@ const calculateEconomy = (runs: number, totalBalls: number): string => {
   return (runs / oversForCalc).toFixed(2);
 };
 
-export const BowlingStatsDisplay: FC<BowlingStatsDisplayProps> = ({ bowlers, teamName }) => {
+export const BowlingStatsDisplay: FC<BowlingStatsDisplayProps> = ({ bowlers, teamName, currentBowlerId }) => {
   return (
     <Card>
       <CardHeader>
@@ -66,8 +67,11 @@ export const BowlingStatsDisplay: FC<BowlingStatsDisplayProps> = ({ bowlers, tea
             </TableHeader>
             <TableBody>
               {bowlers.map((bowler) => (
-                <TableRow key={bowler.id}> {/* Changed key to bowler.id */}
-                  <TableCell className="font-medium">{bowler.name}</TableCell>
+                <TableRow key={bowler.id} className={bowler.id === currentBowlerId ? 'bg-accent/50' : ''}>
+                  <TableCell className="font-medium">
+                    {bowler.name}
+                    {bowler.id === currentBowlerId && <span className="text-primary ml-1">*</span>}
+                  </TableCell>
                   <TableCell className="text-center">{formatOvers(bowler.totalBallsBowled)}</TableCell>
                   <TableCell className="text-center">{bowler.maidens}</TableCell>
                   <TableCell className="text-center">{bowler.runsConceded}</TableCell>
@@ -83,5 +87,3 @@ export const BowlingStatsDisplay: FC<BowlingStatsDisplayProps> = ({ bowlers, tea
     </Card>
   );
 };
-
-    

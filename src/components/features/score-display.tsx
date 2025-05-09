@@ -10,7 +10,11 @@ interface ScoreDisplayProps {
   balls: number;
   isBatting: boolean;
   onStrikeBatterName?: string;
+  onStrikeBatterRuns?: number;
+  onStrikeBatterBalls?: number;
   offStrikeBatterName?: string;
+  offStrikeBatterRuns?: number;
+  offStrikeBatterBalls?: number;
 }
 
 export const ScoreDisplay: FC<ScoreDisplayProps> = ({ 
@@ -21,7 +25,11 @@ export const ScoreDisplay: FC<ScoreDisplayProps> = ({
   balls, 
   isBatting,
   onStrikeBatterName,
-  offStrikeBatterName 
+  onStrikeBatterRuns,
+  onStrikeBatterBalls,
+  offStrikeBatterName,
+  offStrikeBatterRuns,
+  offStrikeBatterBalls,
 }) => {
   return (
     <Card className={isBatting ? 'border-accent shadow-lg' : ''}>
@@ -39,14 +47,20 @@ export const ScoreDisplay: FC<ScoreDisplayProps> = ({
           Overs: {overs}.{balls}
         </p>
         {isBatting && (onStrikeBatterName || offStrikeBatterName) && (
-          <div className="text-xs text-muted-foreground pt-1">
-            {onStrikeBatterName && <p>On Strike: {onStrikeBatterName}*</p>}
-            {offStrikeBatterName && <p>Off Strike: {offStrikeBatterName}</p>}
+          <div className="text-xs text-muted-foreground pt-1 space-y-1">
+            {onStrikeBatterName && (
+              <p>
+                {onStrikeBatterName}*: {onStrikeBatterRuns ?? 0} ({onStrikeBatterBalls ?? 0})
+              </p>
+            )}
+            {offStrikeBatterName && (
+              <p>
+                {offStrikeBatterName}: {offStrikeBatterRuns ?? 0} ({offStrikeBatterBalls ?? 0})
+              </p>
+            )}
           </div>
         )}
       </CardContent>
     </Card>
   );
 };
-
-    
