@@ -12,7 +12,7 @@ import {
   TableCaption,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Target } from 'lucide-react'; // Using Target as a generic sports icon
+import { Target } from 'lucide-react'; 
 
 interface Batter {
   id: string;
@@ -30,6 +30,7 @@ interface BattingStatsDisplayProps {
   batters: Batter[];
   teamName: string;
   onStrikeBatterId: string | null;
+  offStrikeBatterId: string | null; 
 }
 
 const calculateStrikeRate = (runs: number, balls: number): string => {
@@ -37,7 +38,7 @@ const calculateStrikeRate = (runs: number, balls: number): string => {
   return ((runs / balls) * 100).toFixed(2);
 };
 
-export const BattingStatsDisplay: FC<BattingStatsDisplayProps> = ({ batters, teamName, onStrikeBatterId }) => {
+export const BattingStatsDisplay: FC<BattingStatsDisplayProps> = ({ batters, teamName, onStrikeBatterId, offStrikeBatterId }) => {
   const sortedBatters = [...batters].sort((a, b) => a.order - b.order);
 
   return (
@@ -46,7 +47,7 @@ export const BattingStatsDisplay: FC<BattingStatsDisplayProps> = ({ batters, tea
         <CardTitle className="text-xl flex items-center gap-2">
           <Target className="text-primary h-6 w-6" /> Batting Card ({teamName})
         </CardTitle>
-        <CardDescription>Scorecard for {teamName}.</CardDescription>
+        <CardDescription>Scorecard for {teamName}. <span className="text-primary">*</span> denotes on strike, <span className="text-accent-foreground"><sup>NS</sup></span> denotes non-striker.</CardDescription>
       </CardHeader>
       <CardContent>
         {sortedBatters.length === 0 ? (
@@ -65,20 +66,29 @@ export const BattingStatsDisplay: FC<BattingStatsDisplayProps> = ({ batters, tea
               </TableRow>
             </TableHeader>
             <TableBody>
-              {sortedBatters.map((batter) => (
-                <TableRow key={batter.id} className={batter.id === onStrikeBatterId && !batter.isOut ? 'bg-accent/50' : ''}>
-                  <TableCell className="font-medium">
-                    {batter.name}
-                    {batter.id === onStrikeBatterId && !batter.isOut && <span className="text-primary ml-1">*</span>}
-                  </TableCell>
-                  <TableCell>{batter.isOut ? (batter.howOut || 'Out') : (batter.ballsFaced > 0 || batter.runsScored > 0 || batter.id === onStrikeBatterId ? 'Batting' : 'Not Out')}</TableCell>
-                  <TableCell className="text-center">{batter.runsScored}</TableCell>
-                  <TableCell className="text-center">{batter.ballsFaced}</TableCell>
-                  <TableCell className="text-center">{batter.fours}</TableCell>
-                  <TableCell className="text-center">{batter.sixes}</TableCell>
-                  <TableCell className="text-right">{calculateStrikeRate(batter.runsScored, batter.ballsFaced)}</TableCell>
-                </TableRow>
-              ))}
+              {sortedBatters.map((batter) => {
+                const isOnStrike = batter.id === onStrikeBatterId && !batter.isOut;
+                const isOffStrike = batter.id === offStrikeBatterId && !batter.isOut;
+                let rowClassName = '';
+                if (isOnStrike) rowClassName = 'bg-primary/10';
+                else if (isOffStrike) rowClassName = 'bg-accent/20';
+                
+                return (
+                  <TableRow key={batter.id} className={rowClassName}>
+                    <TableCell className="font-medium">
+                      {batter.name}
+                      {isOnStrike && <span className="text-primary ml-1">*</span>}
+                      {isOffStrike && <span className="text-accent-foreground ml-1 text-xs align-super">NS</span>}
+                    </TableCell>
+                    <TableCell>{batter.isOut ? (batter.howOut || 'Out') : ((batter.ballsFaced > 0 || batter.runsScored > 0 || isOnStrike || isOffStrike) ? 'Batting' : 'Not Out')}</TableCell>
+                    <TableCell className="text-center">{batter.runsScored}</TableCell>
+                    <TableCell className="text-center">{batter.ballsFaced}</TableCell>
+                    <TableCell className="text-center">{batter.fours}</TableCell>
+                    <TableCell className="text-center">{batter.sixes}</TableCell>
+                    <TableCell className="text-right">{calculateStrikeRate(batter.runsScored, batter.ballsFaced)}</TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
             {sortedBatters.length > 0 && <TableCaption>Batting statistics for {teamName}.</TableCaption>}
           </Table>
@@ -87,5 +97,3 @@ export const BattingStatsDisplay: FC<BattingStatsDisplayProps> = ({ batters, tea
     </Card>
   );
 };
-
-    

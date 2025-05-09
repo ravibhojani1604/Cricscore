@@ -25,7 +25,8 @@ interface BatterControlsProps {
   onAddBatter: (name: string) => void;
   onSelectBatter: (position: 'onStrike' | 'offStrike', batterId: string) => void;
   onSwapStrike: () => void;
-  disabled: boolean; // Overall disabled state from parent (innings over, match over, etc.)
+  disabled: boolean; 
+  maxBatters: number;
 }
 
 export const BatterControls: FC<BatterControlsProps> = ({
@@ -37,6 +38,7 @@ export const BatterControls: FC<BatterControlsProps> = ({
   onSelectBatter,
   onSwapStrike,
   disabled,
+  maxBatters,
 }) => {
   const [newBatterNameInput, setNewBatterNameInput] = useState('');
 
@@ -51,18 +53,21 @@ export const BatterControls: FC<BatterControlsProps> = ({
   const onStrikeBatter = batters.find(b => b.id === onStrikeBatterId);
   const offStrikeBatter = batters.find(b => b.id === offStrikeBatterId);
 
-  const maxBattersReached = batters.length >= 11;
-  const twoBattersActive = onStrikeBatterId !== null && offStrikeBatterId !== null;
-  const canAddBatterToList = !disabled && !maxBattersReached && !twoBattersActive;
+  const lineupFull = batters.length >= maxBatters;
+  const twoBattersSelectedAndActive = onStrikeBatterId !== null && offStrikeBatterId !== null &&
+                                   batters.some(b => b.id === onStrikeBatterId && !b.isOut) &&
+                                   batters.some(b => b.id === offStrikeBatterId && !b.isOut);
 
-  const addBatterInputDisabled = disabled || maxBattersReached || twoBattersActive;
+  const canAddBatterToList = !disabled && !lineupFull && !twoBattersSelectedAndActive;
+
+  const addBatterInputDisabled = disabled || lineupFull || twoBattersSelectedAndActive;
   const addBatterButtonDisabled = addBatterInputDisabled || !newBatterNameInput.trim();
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="text-xl">Batter Management ({battingTeamName})</CardTitle>
-        <CardDescription>Select current batters or add new ones to the lineup.</CardDescription>
+        <CardDescription>Select current batters or add new ones to the lineup (max {maxBatters}).</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
@@ -85,12 +90,12 @@ export const BatterControls: FC<BatterControlsProps> = ({
               <UserPlus className="mr-2 h-4 w-4" /> Add Batter
             </Button>
           </div>
-           {maxBattersReached && (
-            <p className="text-xs text-muted-foreground">Maximum 11 batters reached for {battingTeamName}.</p>
+           {lineupFull && (
+            <p className="text-xs text-muted-foreground">Maximum {maxBatters} batters reached for {battingTeamName}.</p>
            )}
-           {!disabled && !maxBattersReached && twoBattersActive && (
+           {!disabled && !lineupFull && twoBattersSelectedAndActive && (
             <p className="text-xs text-muted-foreground">
-              Two batters are currently active. Add new batters to the lineup after a wicket or if a slot is free.
+              Two batters are currently active. Add new batters after a wicket or if a slot is free.
             </p>
            )}
         </div>

@@ -31,7 +31,7 @@ export const ScoreControls: FC<ScoreControlsProps> = ({
   const runOptions = [0, 1, 2, 3, 4, 6];
   const overallDisabled = disabled || !isBowlerSelected || !isStrikerSelected;
 
-  const [wideAdditionalRuns, setWideAdditionalRuns] = useState<string>("0");
+  const [wideAdditionalRuns, setWideAdditionalRuns] = useState<string>("0"); // Store as string for Select component
   const [noBallAdditionalRuns, setNoBallAdditionalRuns] = useState<string>("0");
 
   const handleRunButtonClick = (run: number) => {
@@ -45,25 +45,30 @@ export const ScoreControls: FC<ScoreControlsProps> = ({
   };
 
   const handleDotBallClick = () => {
-    onAddRuns(0, false); 
-    onNextBall(true);
+    // A dot ball means 0 runs off bat, and it's a legal delivery.
+    // onAddRuns(0, false) is not strictly needed if 0 runs doesn't change score,
+    // but can be kept for consistency or if 0 runs has other logging.
+    // The primary action here is advancing the ball count.
+    onNextBall(true); 
   };
   
   const handleConfirmWide = () => {
     const additionalRuns = parseInt(wideAdditionalRuns, 10);
-    const totalRunsForWide = 1 + additionalRuns;
-    onAddRuns(totalRunsForWide, true);
-    onNextBall(false);
+    const totalRunsForWide = 1 + additionalRuns; // Wide itself is 1 run + any additional
+    onAddRuns(totalRunsForWide, true); // Mark as extra run
+    onNextBall(false); // Wide is not a legal delivery
   };
 
   const handleConfirmNoBall = () => {
-    const additionalRuns = parseInt(noBallAdditionalRuns, 10);
-    const totalRunsForNoBall = 1 + additionalRuns;
-    onAddRuns(totalRunsForNoBall, true);
-    onNextBall(false);
+    const additionalRuns = parseInt(noBallAdditionalRuns, 10); // Runs scored off the no-ball delivery (bat or byes/leg-byes)
+    const totalRunsForNoBall = 1 + additionalRuns; // No ball is 1 run + any scored off it
+    onAddRuns(totalRunsForNoBall, true); // Mark as extra run (the no-ball itself)
+    onNextBall(false); // No ball is not a legal delivery (counts as a ball in over for bowler stats, but team gets extra delivery)
   };
 
-  const additionalRunOptions = [0, 1, 2, 3, 4];
+  // For the dropdown: 0, 1, 2, 3, 4 runs *in addition* to the wide/no-ball itself.
+  const additionalRunOptionsForExtras = [0, 1, 2, 3, 4];
+
 
   return (
     <Card>
@@ -124,7 +129,7 @@ export const ScoreControls: FC<ScoreControlsProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Wide Ball Section */}
             <div className="space-y-2 p-3 border rounded-md bg-background shadow-sm">
-              <Label htmlFor="wide-additional-runs" className="font-semibold">Wide + Additional Runs</Label>
+              <Label htmlFor="wide-additional-runs" className="font-semibold">Wide + Runs Scored Off It</Label>
               <div className="flex items-center gap-2">
                 <Select
                   value={wideAdditionalRuns}
@@ -135,7 +140,7 @@ export const ScoreControls: FC<ScoreControlsProps> = ({
                     <SelectValue placeholder="Select runs..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {additionalRunOptions.map(run => (
+                    {additionalRunOptionsForExtras.map(run => (
                        <SelectItem key={`wide-${run}`} value={String(run)}>
                          {run === 0 ? "0 runs (wide only)" : `+${run} run${run !== 1 ? 's' : ''}`}
                        </SelectItem>
@@ -156,7 +161,7 @@ export const ScoreControls: FC<ScoreControlsProps> = ({
 
             {/* No Ball Section */}
             <div className="space-y-2 p-3 border rounded-md bg-background shadow-sm">
-              <Label htmlFor="noball-additional-runs" className="font-semibold">No Ball + Additional Runs</Label>
+              <Label htmlFor="noball-additional-runs" className="font-semibold">No Ball + Runs Scored Off It</Label>
               <div className="flex items-center gap-2">
                 <Select
                   value={noBallAdditionalRuns}
@@ -167,7 +172,7 @@ export const ScoreControls: FC<ScoreControlsProps> = ({
                     <SelectValue placeholder="Select runs..." />
                   </SelectTrigger>
                   <SelectContent>
-                     {additionalRunOptions.map(run => (
+                     {additionalRunOptionsForExtras.map(run => (
                        <SelectItem key={`noball-${run}`} value={String(run)}>
                          {run === 0 ? "0 runs (no ball only)" : `+${run} run${run !== 1 ? 's' : ''}`}
                        </SelectItem>
