@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { FC } from 'react';
@@ -9,9 +10,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send } from 'lucide-react';
 
 interface CommentaryItem {
-  id: string; // Changed from number to string
+  id: string; 
   text: string;
-  timestamp: string; // ISO string or formatted string
+  timestamp: string; 
 }
 
 interface LiveCommentaryFeedProps {
@@ -21,13 +22,15 @@ interface LiveCommentaryFeedProps {
 
 export const LiveCommentaryFeed: FC<LiveCommentaryFeedProps> = ({ commentaryLog, onAddManualCommentary }) => {
   const [manualComment, setManualComment] = useState('');
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (scrollAreaRef.current) {
-      // Scroll to bottom logic might be needed here if not handled by ScrollArea
-      // Forcing scroll to bottom can be complex with shadcn's ScrollArea abstraction.
-      // Displaying newest first (by reversing array) is a common alternative.
+    if (viewportRef.current) {
+      // Scroll to the bottom when new commentary is added
+      // This is for [...].reverse().map, so new items are at the top visually
+      // but the container itself doesn't need to scroll to bottom on new item if items are prepended.
+      // If newest is at bottom, then:
+      // viewportRef.current.scrollTop = viewportRef.current.scrollHeight;
     }
   }, [commentaryLog]);
 
@@ -39,21 +42,21 @@ export const LiveCommentaryFeed: FC<LiveCommentaryFeedProps> = ({ commentaryLog,
   };
 
   return (
-    <Card className="flex flex-col h-full max-h-[calc(100vh-200px)] md:max-h-none">
+    <Card className="flex flex-col flex-1 min-h-0"> {/* Adjusted for flex sizing */}
       <CardHeader>
         <CardTitle className="text-xl">Live Commentary</CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow overflow-hidden p-0">
-        <ScrollArea className="h-72 md:h-[calc(100%-150px)] p-6" ref={scrollAreaRef}>
+      <CardContent className="flex-1 overflow-hidden p-0 min-h-0"> {/* Adjusted for flex child + scrolling */}
+        <ScrollArea className="h-full p-6" viewportRef={viewportRef}>
           {commentaryLog.length === 0 ? (
             <p className="text-muted-foreground text-center">No commentary yet. Match starting soon!</p>
           ) : (
             <ul className="space-y-3">
-              {[...commentaryLog].reverse().map((item) => ( // Display newest first
-                <li key={item.id} className="text-sm pb-2 border-b border-dashed">
-                  <p>{item.text}</p>
+              {[...commentaryLog].reverse().map((item) => ( 
+                <li key={item.id} className="text-sm pb-2 border-b border-input last:border-b-0">
+                  <p className="leading-relaxed">{item.text}</p>
                   <p className="text-xs text-muted-foreground pt-1">
-                    {new Date(item.timestamp).toLocaleTimeString()}
+                    {new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </p>
                 </li>
               ))}
@@ -67,13 +70,14 @@ export const LiveCommentaryFeed: FC<LiveCommentaryFeedProps> = ({ commentaryLog,
             placeholder="Type your commentary here..."
             value={manualComment}
             onChange={(e) => setManualComment(e.target.value)}
-            className="flex-1 min-h-[60px]"
+            className="flex-1 min-h-[60px] resize-none"
             onKeyPress={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 handleAddComment();
               }
             }}
+            aria-label="Add manual commentary"
           />
           <Button onClick={handleAddComment} aria-label="Add commentary" size="icon" className="h-auto p-2 aspect-square self-stretch">
             <Send className="h-5 w-5" />

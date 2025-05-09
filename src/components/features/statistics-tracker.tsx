@@ -23,7 +23,7 @@ export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, bal
     if (runsNeeded > 0) {
       requiredRunRate = (runsNeeded / ballsRemaining) * 6;
     } else {
-      requiredRunRate = 0; // Target achieved
+      requiredRunRate = 0; // Target achieved or surpassed
     }
   }
 
@@ -32,53 +32,52 @@ export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, bal
       <CardHeader>
         <CardTitle className="text-xl">Match Statistics</CardTitle>
       </CardHeader>
-      <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6">
         <div>
-          <h3 className="font-semibold text-primary">Current Run Rate</h3>
-          <p className="text-2xl">{runRate.toFixed(2)}</p>
+          <h3 className="text-sm font-medium text-muted-foreground">Current Run Rate</h3>
+          <p className="text-2xl font-semibold text-foreground">{runRate.toFixed(2)}</p>
         </div>
         {target !== undefined && (
           <div>
-            <h3 className="font-semibold text-primary">Target</h3>
-            <p className="text-2xl">{target}</p>
+            <h3 className="text-sm font-medium text-muted-foreground">Target</h3>
+            <p className="text-2xl font-semibold text-foreground">{target}</p>
           </div>
         )}
         <div>
-          <h3 className="font-semibold">Score</h3>
-          <p className="text-lg">{runs}/{wickets}</p>
+          <h3 className="text-sm font-medium text-muted-foreground">Score</h3>
+          <p className="text-lg font-semibold text-foreground">{runs}/{wickets}</p>
         </div>
          <div>
-          <h3 className="font-semibold">Overs</h3>
-          <p className="text-lg">{overs}.{balls}</p>
+          <h3 className="text-sm font-medium text-muted-foreground">Overs</h3>
+          <p className="text-lg font-semibold text-foreground">{overs}.{balls}</p>
         </div>
         <div>
-          <h3 className="font-semibold">Extras</h3>
-          <p className="text-lg">{extras}</p>
+          <h3 className="text-sm font-medium text-muted-foreground">Extras</h3>
+          <p className="text-lg font-semibold text-foreground">{extras}</p>
         </div>
         {target !== undefined && runs < target && (
           <>
             <div>
-              <h3 className="font-semibold">Runs Needed</h3>
-              <p className="text-lg">{Math.max(0, target - runs)}</p>
+              <h3 className="text-sm font-medium text-muted-foreground">Runs Needed</h3>
+              <p className="text-lg font-semibold text-foreground">{Math.max(0, target - runs)}</p>
             </div>
             <div>
-              <h3 className="font-semibold">Balls Remaining</h3>
-              <p className="text-lg">{ballsRemaining > 0 ? ballsRemaining : 0}</p>
+              <h3 className="text-sm font-medium text-muted-foreground">Balls Remaining</h3>
+              <p className="text-lg font-semibold text-foreground">{ballsRemaining > 0 ? ballsRemaining : 0}</p>
             </div>
           </>
         )}
-        {requiredRunRate !== null && target !==undefined && runs < target && (
+        {requiredRunRate !== null && target !==undefined && runs < target && ballsRemaining > 0 && (
           <div className="md:col-span-1">
-            <h3 className="font-semibold text-accent">Required Run Rate</h3>
-            <p className="text-2xl text-accent">{requiredRunRate.toFixed(2)}</p>
+            <h3 className="text-sm font-medium text-muted-foreground text-accent">Required Run Rate</h3>
+            <p className="text-2xl font-semibold text-accent">{requiredRunRate.toFixed(2)}</p>
           </div>
         )}
          {target !== undefined && runs >= target && (
             <div className="col-span-full text-center py-2">
-                <p className="text-lg font-semibold text-green-600">Target Achieved!</p>
+                <p className="text-xl font-bold text-green-600">Target Achieved!</p>
             </div>
         )}
-
       </CardContent>
     </Card>
   );

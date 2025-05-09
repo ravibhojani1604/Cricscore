@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { UserPlus, ListChecks, Edit3, Save, XCircle, AlertTriangle, Info } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
 
 interface Bowler {
   id: string;
@@ -29,6 +31,7 @@ interface BowlerControlsProps {
   fieldingTeamName: string;
   isBowlerEditable: boolean;
   isOverInProgress: boolean;
+  maxBowlersToList: number; // Added from page.tsx
 }
 
 export const BowlerControls: FC<BowlerControlsProps> = ({
@@ -41,19 +44,24 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
   fieldingTeamName,
   isBowlerEditable,
   isOverInProgress,
+  maxBowlersToList,
 }) => {
   const [newBowlerNameInput, setNewBowlerNameInput] = useState('');
   const [isEditingName, setIsEditingName] = useState(false);
   const [editableName, setEditableName] = useState('');
 
   const currentBowler = bowlers.find(b => b.id === currentBowlerId);
-  const overallControlsDisabled = disabled || isOverInProgress;
+  // Overall controls should be disabled if the main 'disabled' prop is true OR if an over is in progress (for changing bowler/adding new)
+  const overallControlsDisabled = disabled || isOverInProgress; 
+  // Specific disable for add/select if max bowlers reached and not selecting existing one
+  const addOrSelectDisabled = overallControlsDisabled || (bowlers.length >= maxBowlersToList && !bowlers.find(b => b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase()));
 
 
   useEffect(() => {
     if (currentBowler && isEditingName) {
       setEditableName(currentBowler.name);
     } else if (!currentBowler || !isBowlerEditable || isOverInProgress) {
+      // Cancel editing if bowler changes, no longer editable, or over starts
       setIsEditingName(false);
     }
   }, [currentBowler, isEditingName, isBowlerEditable, isOverInProgress]);
@@ -81,15 +89,16 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
 
   const handleCancelEdit = () => {
     setIsEditingName(false);
-    if (currentBowler) {
+    if (currentBowler) { // Reset editable name to current bowler's name
       setEditableName(currentBowler.name);
     }
   };
 
-  const editButtonDisabled = disabled || !isBowlerEditable || isOverInProgress;
+  const editButtonDisabled = disabled || !isBowlerEditable || isOverInProgress || !currentBowlerId;
   const editButtonTitle =
     isOverInProgress ? "Cannot edit bowler name during an over." :
-    !isBowlerEditable ? "Cannot edit bowler name after they've started bowling an over." :
+    !isBowlerEditable ? "Bowler name cannot be edited after they've started bowling this spell or if no bowler selected." :
+    !currentBowlerId ? "No bowler selected to edit." :
     "Edit bowler name";
 
 
@@ -97,7 +106,7 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
     <Card>
       <CardHeader>
         <CardTitle className="text-xl">Bowler Management ({fieldingTeamName})</CardTitle>
-        <CardDescription>Select, add, or edit the current bowler.</CardDescription>
+        <CardDescription>Select, add, or edit the current bowler. Only {maxBowlersToList} bowler at a time.</CardDescription>
          {!currentBowlerId && !disabled && (
              <p className="text-sm text-destructive flex items-center gap-1 pt-1">
                 <AlertTriangle className="h-4 w-4" />
@@ -105,10 +114,13 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
              </p>
         )}
         {isOverInProgress && currentBowler && !disabled && (
-            <p className="text-sm text-blue-600 flex items-center gap-1 pt-1 bg-blue-50 p-2 rounded-md">
+             <Alert variant="default" className="mt-2 bg-secondary">
                 <Info className="h-4 w-4" />
-                Over in progress by {currentBowler.name}. Complete the over to change bowler or edit name.
-            </p>
+                <AlertTitle>Over in Progress</AlertTitle>
+                <AlertDescription>
+                    {currentBowler.name} is currently bowling. Complete the over to change bowler or edit name.
+                </AlertDescription>
+            </Alert>
         )}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -120,24 +132,33 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
                 <Input
                   id="new-bowler-name"
                   type="text"
-                  placeholder="Enter bowler's name to add or select"
+                  placeholder="Enter bowler's name"
                   value={newBowlerNameInput}
                   onChange={(e) => setNewBowlerNameInput(e.target.value)}
-                  disabled={overallControlsDisabled || bowlers.length >= 1}
+                  disabled={addOrSelectDisabled}
                   className="flex-grow"
                 />
                 <Button
                     onClick={handleSetNewBowler}
-                    disabled={overallControlsDisabled || !newBowlerNameInput.trim() || bowlers.length >= 1}
+                    disabled={addOrSelectDisabled || !newBowlerNameInput.trim()}
                     aria-label="Set or Add Bowler"
-                    title={isOverInProgress ? "Cannot change bowler during an over." : bowlers.length >=1 ? "Only one bowler can be active at a time." : ""}
+                    title={
+                        isOverInProgress ? "Cannot change bowler during an over." : 
+                        (bowlers.length >= maxBowlersToList && !bowlers.find(b=>b.name.toLowerCase() === newBowlerNameInput.trim().toLowerCase())) ? `Max ${maxBowlersToList} bowlers allowed.` : 
+                        ""
+                    }
                 >
                   <UserPlus className="mr-2 h-4 w-4" /> Set/Add
                 </Button>
               </div>
-               {bowlers.length >= 1 && !currentBowlerId && !overallControlsDisabled && (
+               {bowlers.length >= maxBowlersToList && !currentBowlerId && !overallControlsDisabled && (
                 <p className="text-xs text-muted-foreground">
-                    A bowler is already selected or in the list. Only one active bowler for {fieldingTeamName}.
+                    Maximum {maxBowlersToList} bowler(s) allowed for {fieldingTeamName}. Current: {bowlers.map(b => b.name).join(', ')}.
+                </p>
+               )}
+               {bowlers.length >= maxBowlersToList && currentBowlerId && !overallControlsDisabled && (
+                <p className="text-xs text-muted-foreground">
+                    Current bowler: {currentBowler?.name}. Clear to add a new one if needed.
                 </p>
                )}
             </div>
@@ -172,7 +193,7 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
         )}
 
         {currentBowler && !isEditingName && (
-          <div className="flex items-center justify-between p-2 bg-secondary/50 rounded-md">
+          <div className="flex items-center justify-between p-3 bg-muted/50 rounded-md">
             <p className="text-sm font-medium text-primary">
               Current Bowler: <span className="font-bold">{currentBowler.name}</span>
             </p>
@@ -189,17 +210,17 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
         )}
 
         {isEditingName && currentBowler && (
-          <div className="space-y-2 p-3 border rounded-md bg-background shadow-sm">
-            <Label htmlFor="edit-bowler-name" className="font-semibold">Edit Bowler Name</Label>
+          <div className="space-y-3 p-4 border rounded-md bg-background shadow-sm">
+            <Label htmlFor="edit-bowler-name" className="text-base font-semibold text-primary">Edit Bowler Name</Label>
              <Input
               id="edit-bowler-name"
               type="text"
               value={editableName}
               onChange={(e) => setEditableName(e.target.value)}
-              disabled={disabled || !isBowlerEditable || isOverInProgress}
+              disabled={disabled || !isBowlerEditable || isOverInProgress} 
               className="mb-2"
             />
-            <div className="flex space-x-2 justify-end">
+            <div className="flex space-x-2 justify-end pt-1">
               <Button onClick={handleCancelEdit} variant="ghost" size="sm" disabled={!isBowlerEditable || isOverInProgress}>
                 <XCircle className="mr-1 h-4 w-4" /> Cancel
               </Button>
@@ -207,9 +228,9 @@ export const BowlerControls: FC<BowlerControlsProps> = ({
                 <Save className="mr-1 h-4 w-4" /> Save Name
               </Button>
             </div>
-             {(!isBowlerEditable || isOverInProgress) &&
-                <p className="text-xs text-muted-foreground">
-                    {isOverInProgress ? "Bowler name cannot be edited during an over." : "Bowler name cannot be edited once they have started bowling an over."}
+             {(!isBowlerEditable || isOverInProgress) && !disabled &&
+                <p className="text-xs text-muted-foreground pt-1">
+                    {isOverInProgress ? "Bowler name cannot be edited during an over." : !isBowlerEditable ? "Bowler name cannot be edited after they have bowled in this spell." : ""}
                 </p>
              }
           </div>
