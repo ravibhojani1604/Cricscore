@@ -8,6 +8,7 @@ interface ScoreDisplayProps {
   wickets: number;
   overs: number;
   balls: number;
+  extras?: number; // Added extras prop
   isBatting: boolean;
   onStrikeBatterName?: string;
   onStrikeBatterRuns?: number;
@@ -23,6 +24,7 @@ export const ScoreDisplay: FC<ScoreDisplayProps> = ({
   wickets, 
   overs, 
   balls, 
+  extras,
   isBatting,
   onStrikeBatterName,
   onStrikeBatterRuns,
@@ -45,6 +47,9 @@ export const ScoreDisplay: FC<ScoreDisplayProps> = ({
         </p>
         <p className="text-muted-foreground">
           Overs: {overs}.{balls}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Extras: {extras ?? 0}
         </p>
         {isBatting && (onStrikeBatterName || offStrikeBatterName) && (
           <div className="text-xs text-muted-foreground pt-1 space-y-1">

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from "@/components/ui/table";
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Trash2 } from 'lucide-react';
-import type { MatchRecord } from '@/app/page';
+import type { MatchRecord } from '@/app/page'; // Ensure MatchRecord includes extras
 
 interface MatchHistoryDisplayProps {
   history: MatchRecord[];
@@ -24,12 +24,12 @@ export const MatchHistoryDisplay: FC<MatchHistoryDisplayProps> = ({ history, onC
             <TableCaption>A list of your past matches. Newest matches are shown first.</TableCaption>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[120px]">Date</TableHead>
+                <TableHead className="w-[100px]">Date</TableHead>
                 <TableHead>Team 1</TableHead>
-                <TableHead className="text-center">Score (Overs)</TableHead>
+                <TableHead className="text-center">Score (Overs) (Extras)</TableHead>
                 <TableHead>Team 2</TableHead>
-                <TableHead className="text-center">Score (Overs)</TableHead>
-                <TableHead className="min-w-[200px]">Result</TableHead>
+                <TableHead className="text-center">Score (Overs) (Extras)</TableHead>
+                <TableHead className="min-w-[180px]">Result</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -37,9 +37,9 @@ export const MatchHistoryDisplay: FC<MatchHistoryDisplayProps> = ({ history, onC
                 <TableRow key={match.id}>
                   <TableCell>{new Date(match.date).toLocaleDateString()}</TableCell>
                   <TableCell className="font-medium">{match.team1Name}</TableCell>
-                  <TableCell className="text-center">{match.team1Score} ({match.team1Overs})</TableCell>
+                  <TableCell className="text-center">{match.team1Score} ({match.team1Overs}) (E: {match.team1Extras})</TableCell>
                   <TableCell className="font-medium">{match.team2Name}</TableCell>
-                  <TableCell className="text-center">{match.team2Score} ({match.team2Overs})</TableCell>
+                  <TableCell className="text-center">{match.team2Score} ({match.team2Overs}) (E: {match.team2Extras})</TableCell>
                   <TableCell>{match.result}</TableCell>
                 </TableRow>
               ))}
