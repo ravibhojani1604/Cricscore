@@ -17,7 +17,7 @@ interface ScoreDisplayProps {
   offStrikeBatterName?: string;
   offStrikeBatterRuns?: number;
   offStrikeBatterBalls?: number;
-  maxOvers: number; // Added maxOvers
+  maxOvers: number;
 }
 
 export const ScoreDisplay: FC<ScoreDisplayProps> = ({ 
@@ -51,7 +51,7 @@ export const ScoreDisplay: FC<ScoreDisplayProps> = ({
           }
         </CardTitle>
          <CardDescription className="text-xs pt-1">
-          Max {maxOvers} overs innings
+          Max {maxOvers > 0 ? `${maxOvers} overs innings` : 'Match settings pending'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">

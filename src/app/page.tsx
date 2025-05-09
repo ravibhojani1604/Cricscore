@@ -15,7 +15,9 @@ import { BattingStatsDisplay } from '@/components/features/batting-stats-display
 import { MatchHistoryDisplay } from '@/components/features/match-history-display';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { RefreshCw, Undo, History } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RefreshCw, Undo, History, Settings2 } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 interface CommentaryItem {
@@ -93,7 +95,6 @@ export interface StatisticsTrackerProps {
 }
 
 
-const MAX_OVERS = 20;
 const MAX_WICKETS = 10;
 const MAX_BATTERS_PER_TEAM = 11;
 const MAX_FIELDING_TEAM_BOWLERS = 11; 
@@ -141,12 +142,22 @@ export default function CricketPage() {
 
   const [pendingToast, setPendingToast] = useState<Omit<Parameters<typeof toast>[0], 'id'> | null>(null);
 
+  const [maxOversConfiguration, setMaxOversConfiguration] = useState<number>(20);
+  const [isMatchInProgress, setIsMatchInProgress] = useState<boolean>(false);
+
   useEffect(() => {
     if (pendingToast) {
       toast(pendingToast);
       setPendingToast(null); 
     }
   }, [pendingToast, toast]);
+
+  useEffect(() => {
+      const team1PlayedBalledOrScored = team1.overs > 0 || team1.balls > 0 || team1.runs > 0 || team1.wickets > 0;
+      const team2IsBattingAndPlayedBalledOrScored = team2.runs > -1 && (team2.overs > 0 || team2.balls > 0 || team2.runs > 0 || team2.wickets > 0);
+      const matchStarted = team1PlayedBalledOrScored || team2IsBattingAndPlayedBalledOrScored;
+      setIsMatchInProgress(matchStarted);
+  }, [team1, team2]);
 
 
   const currentBattingTeam = battingTeamKey === 'team1' ? team1 : team2;
@@ -174,8 +185,21 @@ export default function CricketPage() {
       if (storedHistory) {
         setMatchHistory(JSON.parse(storedHistory));
       }
+      const storedMaxOvers = localStorage.getItem('maxOversConfiguration');
+      if (storedMaxOvers) {
+        setMaxOversConfiguration(Number(storedMaxOvers));
+      }
     }
   }, []);
+
+  const handleMaxOversChange = (value: string) => {
+    const newMaxOvers = Number(value);
+    setMaxOversConfiguration(newMaxOvers);
+     if (typeof window !== 'undefined') {
+        localStorage.setItem('maxOversConfiguration', String(newMaxOvers));
+     }
+     setPendingToast({ title: "Match Format Updated", description: `Match set to ${newMaxOvers} overs per innings.`});
+  };
 
   const addCommentary = useCallback((text: string, isUndoable: boolean = true): string => {
     const newId = crypto.randomUUID();
@@ -212,7 +236,7 @@ export default function CricketPage() {
     
     const existingBowlerInList = fieldingTeam.bowlers.find(b => b.name.toLowerCase() === trimmedName.toLowerCase());
 
-    if (existingBowlerInList) { // Selecting an existing bowler
+    if (existingBowlerInList) { 
       if (lastBowlerWhoCompletedOver && existingBowlerInList.id === lastBowlerWhoCompletedOver) {
         setPendingToast({ title: "Consecutive Overs", description: `${existingBowlerInList.name} cannot bowl consecutive overs. Please select a different bowler.`, variant: "destructive" });
         return;
@@ -223,7 +247,7 @@ export default function CricketPage() {
         setRunsOffBatAgainstCurrentBowlerThisSpell(0);
         addCommentary(`${existingBowlerInList.name} selected to bowl for ${fieldingTeam.name}.`, false);
       }
-    } else { // Adding a new bowler
+    } else { 
       if (fieldingTeam.bowlers.length >= MAX_FIELDING_TEAM_BOWLERS) {
         setPendingToast({ title: "Bowler List Full", description: `Cannot add more than ${MAX_FIELDING_TEAM_BOWLERS} bowlers to ${fieldingTeam.name}'s list.`, variant: "destructive"});
         return;
@@ -245,7 +269,7 @@ export default function CricketPage() {
       addCommentary(`${newBowler.name} is the new bowler for ${fieldingTeam.name}.`, false); 
     }
     setCanUndo(false); 
-  }, [fieldingTeam, addCommentary, setFieldingTeam, currentBowlerId, ballsByCurrentBowlerThisSpell, lastBowlerWhoCompletedOver, fieldingTeam.name, MAX_FIELDING_TEAM_BOWLERS]);
+  }, [fieldingTeam, addCommentary, setFieldingTeam, currentBowlerId, ballsByCurrentBowlerThisSpell, lastBowlerWhoCompletedOver, setPendingToast]);
 
   const handleSetCurrentBowlerById = useCallback((bowlerId: string) => {
      if (currentBowlerId && ballsByCurrentBowlerThisSpell > 0 && ballsByCurrentBowlerThisSpell < 6 && currentBowlerId !== bowlerId) {
@@ -266,7 +290,7 @@ export default function CricketPage() {
         }
     }
     setCanUndo(false);
-  }, [fieldingTeam.bowlers, addCommentary, currentBowlerId, fieldingTeam.name, ballsByCurrentBowlerThisSpell, lastBowlerWhoCompletedOver]);
+  }, [fieldingTeam.bowlers, addCommentary, currentBowlerId, ballsByCurrentBowlerThisSpell, lastBowlerWhoCompletedOver, setPendingToast, fieldingTeam.name]);
 
   const handleEditBowlerName = useCallback((bowlerIdToEdit: string, newName: string) => {
     if (!newName.trim()) {
@@ -300,7 +324,7 @@ export default function CricketPage() {
       return { ...prevTeam, bowlers: updatedBowlers };
     });
      setCanUndo(false); 
-  }, [setFieldingTeam, addCommentary, currentBowlerId, ballsByCurrentBowlerThisSpell]);
+  }, [setFieldingTeam, addCommentary, currentBowlerId, ballsByCurrentBowlerThisSpell, setPendingToast]);
 
   const handleAddBatter = useCallback((name: string) => {
     if (!name.trim()) {
@@ -320,7 +344,7 @@ export default function CricketPage() {
         const onStrikeIsOut = onStrikeBatterId ? currentBattingTeam.batters.find(b => b.id === onStrikeBatterId)?.isOut : true;
         const offStrikeIsOut = offStrikeBatterId ? currentBattingTeam.batters.find(b => b.id === offStrikeBatterId)?.isOut : true;
 
-        if(!onStrikeIsOut && !offStrikeIsOut && onStrikeBatterId && offStrikeBatterId) {
+        if(!onStrikeIsOut && !offStrikeIsOut && onStrikeBatterId && offStrikeBatterId){
              setPendingToast({ title: "Two Batters Active", description: "Two batters are already selected and not out. Wait for a wicket or deselect a batter to add a new one.", variant: "destructive" });
              return;
         }
@@ -356,7 +380,7 @@ export default function CricketPage() {
       return { ...prevTeam, batters: updatedBatters };
     });
     setCanUndo(false);
-  }, [setCurrentBattingTeam, addCommentary, onStrikeBatterId, offStrikeBatterId, currentBattingTeam.batters, currentBattingTeam.name, MAX_BATTERS_PER_TEAM]);
+  }, [setCurrentBattingTeam, addCommentary, onStrikeBatterId, offStrikeBatterId, currentBattingTeam.batters, currentBattingTeam.name, setPendingToast]);
 
   const handleSelectBatter = useCallback((position: 'onStrike' | 'offStrike', batterId: string) => {
     const selectedBatter = currentBattingTeam.batters.find(b => b.id === batterId);
@@ -394,7 +418,7 @@ export default function CricketPage() {
       addCommentary(`${selectedBatter.name} is at the non-striker's end.`, false);
     }
     setCanUndo(false);
-  }, [currentBattingTeam.batters, onStrikeBatterId, offStrikeBatterId, addCommentary]);
+  }, [currentBattingTeam.batters, onStrikeBatterId, offStrikeBatterId, addCommentary, setPendingToast]);
 
   const handleSwapStrike = useCallback(() => {
     if (!onStrikeBatterId || !offStrikeBatterId) {
@@ -418,7 +442,7 @@ export default function CricketPage() {
 
 
   const handleAddRuns = useCallback((runsScored: number, isExtraRun: boolean = false) => {
-    if (currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= MAX_OVERS || !currentBowlerId || !onStrikeBatterId) {
+    if (currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= maxOversConfiguration || !currentBowlerId || !onStrikeBatterId) {
       if(!currentBowlerId) setPendingToast({title: "Bowler Needed", description: "Please select a bowler.", variant: "destructive"});
       if(!onStrikeBatterId) setPendingToast({title: "Striker Needed", description: "Please select the batter on strike.", variant: "destructive"});
       return;
@@ -482,15 +506,15 @@ export default function CricketPage() {
     const finalCommentary = `${commentaryText} Score: ${currentBattingTeam.runs + runsScored}/${currentBattingTeam.wickets}`;
     setCommentaryLog(prevLog => prevLog.map(c => c.id === commentaryId ? {...c, text: finalCommentary} : c));
 
-    if (runsScored % 2 !== 0 && !isExtraRun && currentBattingTeam.balls < 5 && currentBattingTeam.overs < MAX_OVERS && currentBattingTeam.wickets < MAX_WICKETS) { 
+    if (runsScored % 2 !== 0 && !isExtraRun && currentBattingTeam.balls < 5 && currentBattingTeam.overs < maxOversConfiguration && currentBattingTeam.wickets < MAX_WICKETS) { 
       handleSwapStrike();
     }
 
-  }, [currentBattingTeam, setCurrentBattingTeam, addCommentary, currentBowlerId, setFieldingTeam, onStrikeBatterId, handleSwapStrike, backupStateForUndo, fieldingTeam.bowlers]);
+  }, [currentBattingTeam, setCurrentBattingTeam, addCommentary, currentBowlerId, setFieldingTeam, onStrikeBatterId, handleSwapStrike, backupStateForUndo, fieldingTeam.bowlers, maxOversConfiguration, setPendingToast]);
 
 
   const handleAddWicket = useCallback(() => {
-    if (currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= MAX_OVERS || !currentBowlerId || !onStrikeBatterId) {
+    if (currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= maxOversConfiguration || !currentBowlerId || !onStrikeBatterId) {
       if(!currentBowlerId) setPendingToast({title: "Bowler Needed", description: "Please select a bowler.", variant: "destructive"});
       if(!onStrikeBatterId) setPendingToast({title: "Striker Needed", description: "Please select the batter on strike.", variant: "destructive"});
       return;
@@ -541,10 +565,10 @@ export default function CricketPage() {
     
     setOnStrikeBatterId(null); 
 
-  }, [currentBattingTeam, setCurrentBattingTeam, addCommentary, currentBowlerId, setFieldingTeam, onStrikeBatterId, backupStateForUndo, fieldingTeam.bowlers]);
+  }, [currentBattingTeam, setCurrentBattingTeam, addCommentary, currentBowlerId, setFieldingTeam, onStrikeBatterId, backupStateForUndo, fieldingTeam.bowlers, maxOversConfiguration, setPendingToast]);
 
 const handleNextBall = useCallback((isLegalDelivery: boolean) => {
-    if (currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= MAX_OVERS) {
+    if (currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= maxOversConfiguration) {
       setCanUndo(false);
       return;
     }
@@ -587,9 +611,9 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
           overCompletedByThisDelivery = true; 
           newOvers += 1;
           newBalls = 0;
-          if (newOvers >= MAX_OVERS && prevTeam.wickets < MAX_WICKETS) {
-            addCommentary(`Innings ended for ${prevTeam.name} after ${MAX_OVERS} overs. Final Score: ${prevTeam.runs}/${prevTeam.wickets}`, false);
-            setPendingToast({ title: "Innings Over!", description: `${prevTeam.name} completed ${MAX_OVERS} overs.` });
+          if (newOvers >= maxOversConfiguration && prevTeam.wickets < MAX_WICKETS) {
+            addCommentary(`Innings ended for ${prevTeam.name} after ${maxOversConfiguration} overs. Final Score: ${prevTeam.runs}/${prevTeam.wickets}`, false);
+            setPendingToast({ title: "Innings Over!", description: `${prevTeam.name} completed ${maxOversConfiguration} overs.` });
             setCanUndo(false);
           }
         }
@@ -652,7 +676,7 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
       }
     }
     
-    if (isLegalDelivery && overCompletedByThisDelivery && currentBattingTeam.overs < MAX_OVERS && currentBattingTeam.wickets < MAX_WICKETS) {
+    if (isLegalDelivery && overCompletedByThisDelivery && currentBattingTeam.overs < maxOversConfiguration && currentBattingTeam.wickets < MAX_WICKETS) {
       if (onStrikeBatterId && offStrikeBatterId) {
         handleSwapStrike();
       }
@@ -667,7 +691,7 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
     runsOffBatAgainstCurrentBowlerThisSpell, setRunsOffBatAgainstCurrentBowlerThisSpell,
     lastActionState, backupStateForUndo,
     onStrikeBatterId, offStrikeBatterId, handleSwapStrike, onStrikeBatter, 
-    lastBowlerWhoCompletedOver, setLastBowlerWhoCompletedOver
+    lastBowlerWhoCompletedOver, setLastBowlerWhoCompletedOver, maxOversConfiguration, setPendingToast
   ]);
 
   const handleUndoLastAction = () => {
@@ -720,6 +744,7 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
     setLastActionState(null);
     setCanUndo(false);
     setHasMatchBeenSaved(false);
+    setIsMatchInProgress(false); // Reset match progress status
     setPendingToast({ title: "Match Reset", description: "The match has been reset to its initial state."});
   };
   
@@ -754,7 +779,7 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
       addCommentary(`--- Innings Break: ${previousBattingTeamName} scored ${previousBattingTeamRuns}/${previousBattingTeamWickets} (Extras: ${previousBattingTeamExtras}). ${nextBattingTeamObject.name} to bat. Target: ${previousBattingTeamRuns + 1} ---`, false);
       setPendingToast({ title: "Innings Changed", description: `${nextBattingTeamObject.name} are now batting. ${team1.name} will field.`});
     } else { 
-      const gameFinished = team2.runs !== -1 && (team2.wickets >= MAX_WICKETS || team2.overs >= MAX_OVERS || (isTeam1AllOutOrOversDone && team2.runs > team1.runs && team1.runs > -1));
+      const gameFinished = team2.runs !== -1 && (team2.wickets >= MAX_WICKETS || team2.overs >= maxOversConfiguration || (isTeam1AllOutOrOversDone && team2.runs > team1.runs && team1.runs > -1));
       if(gameFinished) {
         addCommentary(`--- Match Concluded: ${previousBattingTeamName} scored ${previousBattingTeamRuns}/${previousBattingTeamWickets} (Extras: ${previousBattingTeamExtras}) ---`, false);
         setPendingToast({ title: "Match Concluded", description: "Review scores for the result."});
@@ -772,13 +797,13 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
     setCanUndo(false); 
   };
   
-  const inningsEnded = currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= MAX_OVERS;
+  const inningsEnded = currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= maxOversConfiguration;
   const matchCanStartSecondInnings = inningsEnded && battingTeamKey === 'team1' && team2.runs === -1; 
   
-  const isTeam1AllOutOrOversDone = team1.wickets >= MAX_WICKETS || team1.overs >= MAX_OVERS;
+  const isTeam1AllOutOrOversDone = team1.wickets >= MAX_WICKETS || team1.overs >= maxOversConfiguration;
   const isTeam2InningsCompleted = team2.runs !== -1 && (
     team2.wickets >= MAX_WICKETS || 
-    team2.overs >= MAX_OVERS ||
+    team2.overs >= maxOversConfiguration ||
     (isTeam1AllOutOrOversDone && team1.runs > -1 && team2.runs > team1.runs) 
   );
   
@@ -786,24 +811,28 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
   let matchResultText = "";
 
   if (battingTeamKey === 'team1') {
-    // Match doesn't usually end when team1 completes their innings.
-  } else { 
-    if (team1.runs === -1) { 
+    // Match doesn't usually end when team1 completes their innings unless it's the only innings configured (hypothetically)
+     if (isTeam1AllOutOrOversDone && team2.runs === -1 && maxOversConfiguration === 0) { // Or some other condition to signify only one innings
+        matchEnded = true;
+        matchResultText = `${team1.name} scored ${team1.runs}/${team1.wickets}. Match ended.`;
+     }
+  } else { // battingTeamKey === 'team2'
+    if (team1.runs === -1) { // Team 1 did not bat (e.g. match abandoned or configured as such)
         if (isTeam2InningsCompleted) { 
             matchEnded = true; 
             matchResultText = `${team2.name} scored ${team2.runs}/${team2.wickets}. ${team1.name} did not bat.`;
         }
-    } else { 
-        if (team2.runs > team1.runs && team2.wickets < MAX_WICKETS && team2.overs < MAX_OVERS) { 
+    } else { // Team 1 has batted
+        if (team2.runs > team1.runs && team2.wickets < MAX_WICKETS && team2.overs < maxOversConfiguration) { // Team 2 wins by wickets
             matchEnded = true;
             matchResultText = `${team2.name} won by ${MAX_WICKETS - team2.wickets} wicket${(MAX_WICKETS - team2.wickets) !== 1 ? 's' : ''}.`;
-        } else if (isTeam2InningsCompleted) { 
+        } else if (isTeam2InningsCompleted) { // Team 2 innings completed (all out or overs done)
             matchEnded = true;
-            if (team2.runs > team1.runs) { 
+            if (team2.runs > team1.runs) { // Team 2 wins by runs
                  matchResultText = `${team2.name} won by ${team2.runs - team1.runs} run${(team2.runs - team1.runs) !== 1 ? 's' : ''}.`;
-            } else if (team1.runs > team2.runs) { 
+            } else if (team1.runs > team2.runs) { // Team 1 wins by runs
                 matchResultText = `${team1.name} won by ${team1.runs - team2.runs} run${(team1.runs - team2.runs) !== 1 ? 's' : ''}.`;
-            } else { 
+            } else { // Match Tied
                 matchResultText = "Match Tied!";
             }
         }
@@ -860,19 +889,38 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
       <main className="flex-grow container mx-auto p-4 sm:p-6 md:p-8 space-y-8">
-         <div className="flex flex-col sm:flex-row sm:flex-wrap justify-between items-start sm:items-center gap-4 border-b pb-4 mb-6">
-            <h2 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight">Current Match</h2>
-            <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+         <div className="flex flex-col sm:flex-row flex-wrap justify-between items-start sm:items-center gap-4 border-b pb-4 mb-6">
+            <h2 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight basis-full sm:basis-auto">Current Match</h2>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 w-full sm:w-auto justify-start sm:justify-end">
+                <div className="flex items-center space-x-2">
+                    <Label htmlFor="max-overs-config" className="text-sm font-medium whitespace-nowrap">
+                        <Settings2 className="inline mr-1 h-4 w-4 text-muted-foreground" /> Max Overs:
+                    </Label>
+                    <Select
+                        value={String(maxOversConfiguration)}
+                        onValueChange={handleMaxOversChange}
+                        disabled={isMatchInProgress}
+                    >
+                        <SelectTrigger id="max-overs-config" className="w-[120px] shadow-sm text-sm h-9" aria-label="Select maximum overs for the match">
+                        <SelectValue placeholder="Set overs" />
+                        </SelectTrigger>
+                        <SelectContent>
+                        {[5, 10, 15, 20, 25, 30, 40, 50].map(o => (
+                            <SelectItem key={o} value={String(o)}>{o} overs</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                </div>
                 { matchCanStartSecondInnings && !matchEnded && (
-                    <Button onClick={switchInnings} variant="outline" className="border-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground shadow-sm">Start {team2.name}'s Innings</Button>
+                    <Button onClick={switchInnings} variant="outline" className="border-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-3 text-sm">Start {team2.name}'s Innings</Button>
                 )}
                 { matchEnded && (
-                    <p className="text-lg sm:text-xl font-semibold text-primary px-3 py-1.5 rounded-md bg-primary/10 shadow-sm">{matchResultText || "Match Ended!"}</p>
+                    <p className="text-md sm:text-lg font-semibold text-primary px-3 py-1.5 rounded-md bg-primary/10 shadow-sm whitespace-nowrap">{matchResultText || "Match Ended!"}</p>
                 )}
-                <Button onClick={() => setIsHistoryDialogOpen(true)} variant="outline" className="shadow-sm">
+                <Button onClick={() => setIsHistoryDialogOpen(true)} variant="outline" className="shadow-sm h-9 px-3 text-sm">
                     <History className="mr-2 h-4 w-4" /> View History
                 </Button>
-                <Button onClick={resetMatch} variant="destructive" className="shadow-sm">
+                <Button onClick={resetMatch} variant="destructive" className="shadow-sm h-9 px-3 text-sm">
                     <RefreshCw className="mr-2 h-4 w-4" /> Reset Match
                 </Button>
             </div>
@@ -896,7 +944,7 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
                 offStrikeBatterName={battingTeamKey === 'team1' ? offStrikeBatter?.name : undefined}
                 offStrikeBatterRuns={battingTeamKey === 'team1' ? offStrikeBatter?.runsScored : undefined}
                 offStrikeBatterBalls={battingTeamKey === 'team1' ? offStrikeBatter?.ballsFaced : undefined}
-                maxOvers={MAX_OVERS}
+                maxOvers={maxOversConfiguration}
               />
               {(team2.runs !== -1 || matchEnded || battingTeamKey === 'team2') && (
                 <ScoreDisplay 
@@ -913,7 +961,7 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
                   offStrikeBatterName={battingTeamKey === 'team2' ? offStrikeBatter?.name : undefined}
                   offStrikeBatterRuns={battingTeamKey === 'team2' ? offStrikeBatter?.runsScored : undefined}
                   offStrikeBatterBalls={battingTeamKey === 'team2' ? offStrikeBatter?.ballsFaced : undefined}
-                  maxOvers={MAX_OVERS}
+                  maxOvers={maxOversConfiguration}
                 />
               )}
             </div>
@@ -925,7 +973,7 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
               wickets={currentBattingTeam.wickets}
               extras={currentBattingTeam.extras}
               target={battingTeamKey === 'team2' && team1.runs > -1 ? team1.runs + 1 : undefined}
-              maxOvers={MAX_OVERS}
+              maxOvers={maxOversConfiguration}
             />
             
             {!inningsEnded && !matchEnded ? (
@@ -1018,3 +1066,4 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
     </div>
   );
 }
+

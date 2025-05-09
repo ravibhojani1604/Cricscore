@@ -16,17 +16,17 @@ interface StatisticsTrackerProps {
 export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, balls, wickets, extras, target, maxOvers }) => {
   const totalBallsPlayed = overs * 6 + balls;
   const runRate = totalBallsPlayed > 0 ? (runs / totalBallsPlayed) * 6 : 0;
-  const ballsRemainingInMatch = maxOvers * 6 - totalBallsPlayed;
+  const ballsRemainingInMatch = maxOvers > 0 ? maxOvers * 6 - totalBallsPlayed : 0;
 
   let requiredRunRate: number | string | null = null;
-  if (target && ballsRemainingInMatch > 0) {
+  if (target && ballsRemainingInMatch > 0 && maxOvers > 0) {
     const runsNeededToWin = target - runs;
     if (runsNeededToWin <= 0) {
       requiredRunRate = "Achieved"; 
     } else {
       requiredRunRate = ((runsNeededToWin / ballsRemainingInMatch) * 6).toFixed(2);
     }
-  } else if (target && runs < target && ballsRemainingInMatch <=0) {
+  } else if (target && runs < target && ballsRemainingInMatch <=0 && maxOvers > 0) {
       requiredRunRate = "N/A"; 
   }
 
@@ -52,7 +52,7 @@ export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, bal
           <BarChart3 className="text-primary h-6 w-6" /> Match Statistics
         </CardTitle>
         <CardDescription>
-          Key performance indicators for the current innings. (Max {maxOvers} overs per innings)
+          Key performance indicators for the current innings. (Max {maxOvers > 0 ? `${maxOvers} overs` : 'N/A overs'} per innings)
         </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -65,7 +65,7 @@ export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, bal
           <StatItem icon={Target} label="Target" value={target} valueClassName="text-accent-foreground" />
         )}
         
-        {target !== undefined && runs < target && (
+        {target !== undefined && runs < target && maxOvers > 0 && (
           <>
             <StatItem 
               icon={Hourglass} 
@@ -88,12 +88,12 @@ export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, bal
             )}
           </>
         )}
-         {target !== undefined && runs >= target && (
+         {target !== undefined && runs >= target && maxOvers > 0 && (
             <div className="col-span-full text-center py-3 bg-green-100 dark:bg-green-900/30 rounded-lg border border-green-500">
                 <p className="text-xl font-bold text-green-600 dark:text-green-400">Target Achieved!</p>
             </div>
         )}
-        {target !== undefined && runs < target && ballsRemainingInMatch <=0 && (
+        {target !== undefined && runs < target && ballsRemainingInMatch <=0 && maxOvers > 0 && (
              <div className="col-span-full text-center py-3 bg-red-100 dark:bg-red-900/30 rounded-lg border border-red-500">
                 <p className="text-xl font-bold text-red-600 dark:text-red-400">Target Not Met - Innings Ended</p>
             </div>
