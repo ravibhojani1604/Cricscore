@@ -1,6 +1,7 @@
 
 import type { FC } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { BarChart3, Target, TrendingUp, Hourglass, Percent } from 'lucide-react';
 
 interface StatisticsTrackerProps {
   runs: number;
@@ -8,74 +9,91 @@ interface StatisticsTrackerProps {
   balls: number;
   wickets: number;
   extras: number;
-  target?: number; // Optional target score for chasing team
+  target?: number; 
 }
 
 export const StatisticsTracker: FC<StatisticsTrackerProps> = ({ runs, overs, balls, wickets, extras, target }) => {
   const totalBallsPlayed = overs * 6 + balls;
   const runRate = totalBallsPlayed > 0 ? (runs / totalBallsPlayed) * 6 : 0;
-  const MAX_OVERS = 20; // Assuming T20
-  const ballsRemaining = MAX_OVERS * 6 - totalBallsPlayed;
+  const MAX_OVERS = 20; 
+  const ballsRemainingInMatch = MAX_OVERS * 6 - totalBallsPlayed; // Total balls remaining in the match for current innings
 
-  let requiredRunRate: number | null = null;
-  if (target && ballsRemaining > 0) {
-    const runsNeeded = target - runs;
-    if (runsNeeded > 0) {
-      requiredRunRate = (runsNeeded / ballsRemaining) * 6;
+  let requiredRunRate: number | string | null = null;
+  if (target && ballsRemainingInMatch > 0) {
+    const runsNeededToWin = target - runs;
+    if (runsNeededToWin <= 0) {
+      requiredRunRate = "Achieved"; 
     } else {
-      requiredRunRate = 0; // Target achieved or surpassed
+      requiredRunRate = ((runsNeededToWin / ballsRemainingInMatch) * 6).toFixed(2);
     }
+  } else if (target && runs < target && ballsRemainingInMatch <=0) {
+      requiredRunRate = "N/A"; // No balls left but target not met
   }
 
+
+  const StatItem: FC<{ icon: React.ElementType, label: string, value: string | number, valueClassName?: string, unit?: string }> = 
+    ({ icon: Icon, label, value, valueClassName, unit }) => (
+    <div className="p-3 bg-muted/30 rounded-lg border border-input flex flex-col items-start shadow-sm hover:bg-muted/50 transition-colors">
+      <div className="flex items-center gap-2 mb-1">
+        <Icon className="h-5 w-5 text-primary" />
+        <h3 className="text-sm font-medium text-muted-foreground">{label}</h3>
+      </div>
+      <p className={`text-2xl font-semibold ${valueClassName || 'text-foreground'}`}>
+        {value}
+        {unit && <span className="text-sm font-normal ml-1">{unit}</span>}
+      </p>
+    </div>
+  );
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-xl">Match Statistics</CardTitle>
+    <Card className="shadow-md">
+      <CardHeader className="pb-4">
+        <CardTitle className="text-xl flex items-center gap-2">
+          <BarChart3 className="text-primary h-6 w-6" /> Match Statistics
+        </CardTitle>
+        <CardDescription>Key performance indicators for the current innings.</CardDescription>
       </CardHeader>
-      <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-6">
-        <div>
-          <h3 className="text-sm font-medium text-muted-foreground">Current Run Rate</h3>
-          <p className="text-2xl font-semibold text-foreground">{runRate.toFixed(2)}</p>
-        </div>
+      <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <StatItem icon={TrendingUp} label="Run Rate" value={runRate.toFixed(2)} unit="RPO" />
+        <StatItem icon={Target} label="Score" value={`${runs}/${wickets}`} />
+        <StatItem icon={Hourglass} label="Overs" value={`${overs}.${balls}`} />
+        <StatItem icon={Percent} label="Extras" value={extras} />
+
         {target !== undefined && (
-          <div>
-            <h3 className="text-sm font-medium text-muted-foreground">Target</h3>
-            <p className="text-2xl font-semibold text-foreground">{target}</p>
-          </div>
+          <StatItem icon={Target} label="Target" value={target} valueClassName="text-accent-foreground" />
         )}
-        <div>
-          <h3 className="text-sm font-medium text-muted-foreground">Score</h3>
-          <p className="text-lg font-semibold text-foreground">{runs}/{wickets}</p>
-        </div>
-         <div>
-          <h3 className="text-sm font-medium text-muted-foreground">Overs</h3>
-          <p className="text-lg font-semibold text-foreground">{overs}.{balls}</p>
-        </div>
-        <div>
-          <h3 className="text-sm font-medium text-muted-foreground">Extras</h3>
-          <p className="text-lg font-semibold text-foreground">{extras}</p>
-        </div>
+        
         {target !== undefined && runs < target && (
           <>
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Runs Needed</h3>
-              <p className="text-lg font-semibold text-foreground">{Math.max(0, target - runs)}</p>
-            </div>
-            <div>
-              <h3 className="text-sm font-medium text-muted-foreground">Balls Remaining</h3>
-              <p className="text-lg font-semibold text-foreground">{ballsRemaining > 0 ? ballsRemaining : 0}</p>
-            </div>
+            <StatItem 
+              icon={Hourglass} 
+              label="Runs Needed" 
+              value={Math.max(0, target - runs)} 
+              valueClassName={Math.max(0, target - runs) === 0 ? "text-green-600" : "text-destructive"} 
+            />
+            <StatItem 
+                icon={Hourglass} 
+                label="Balls Left" 
+                value={ballsRemainingInMatch > 0 ? ballsRemainingInMatch : 0} 
+            />
+            {requiredRunRate !== null && (
+                 <StatItem 
+                    icon={TrendingUp} 
+                    label="Req. Rate" 
+                    value={requiredRunRate} 
+                    unit={typeof requiredRunRate === 'string' && requiredRunRate !== "Achieved" && requiredRunRate !== "N/A" ? "RPO" : ""}
+                    valueClassName={requiredRunRate === "Achieved" ? "text-green-600" : "text-accent"} />
+            )}
           </>
         )}
-        {requiredRunRate !== null && target !==undefined && runs < target && ballsRemaining > 0 && (
-          <div className="md:col-span-1">
-            <h3 className="text-sm font-medium text-muted-foreground text-accent">Required Run Rate</h3>
-            <p className="text-2xl font-semibold text-accent">{requiredRunRate.toFixed(2)}</p>
-          </div>
-        )}
          {target !== undefined && runs >= target && (
-            <div className="col-span-full text-center py-2">
-                <p className="text-xl font-bold text-green-600">Target Achieved!</p>
+            <div className="col-span-full text-center py-3 bg-green-100 dark:bg-green-900/30 rounded-lg border border-green-500">
+                <p className="text-xl font-bold text-green-600 dark:text-green-400">Target Achieved!</p>
+            </div>
+        )}
+        {target !== undefined && runs < target && ballsRemainingInMatch <=0 && (
+             <div className="col-span-full text-center py-3 bg-red-100 dark:bg-red-900/30 rounded-lg border border-red-500">
+                <p className="text-xl font-bold text-red-600 dark:text-red-400">Target Not Met - Innings Ended</p>
             </div>
         )}
       </CardContent>
