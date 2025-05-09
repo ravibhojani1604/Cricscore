@@ -9,7 +9,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Send } from 'lucide-react';
 
 interface CommentaryItem {
-  id: number;
+  id: string; // Changed from number to string
   text: string;
   timestamp: string; // ISO string or formatted string
 }
@@ -25,10 +25,9 @@ export const LiveCommentaryFeed: FC<LiveCommentaryFeedProps> = ({ commentaryLog,
 
   useEffect(() => {
     if (scrollAreaRef.current) {
-      // Access the viewport directly if needed, or assume ScrollArea handles it.
-      // Forcing scroll to bottom is tricky with shadcn's ScrollArea abstraction from here.
-      // Often, the ScrollArea component itself needs to be controlled or re-keyed to force scroll.
-      // A simpler approach is to reverse the log display.
+      // Scroll to bottom logic might be needed here if not handled by ScrollArea
+      // Forcing scroll to bottom can be complex with shadcn's ScrollArea abstraction.
+      // Displaying newest first (by reversing array) is a common alternative.
     }
   }, [commentaryLog]);
 

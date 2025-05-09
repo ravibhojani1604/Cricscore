@@ -14,7 +14,7 @@ import { RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 
 interface CommentaryItem {
-  id: number;
+  id: string; // Changed from number to string
   text: string;
   timestamp: string;
 }
@@ -55,7 +55,7 @@ export default function CricketPage() {
   const [battingTeamKey, setBattingTeamKey] = useState<'team1' | 'team2'>('team1');
   
   const [commentaryLog, setCommentaryLog] = useState<CommentaryItem[]>([]);
-  const [commentaryIdCounter, setCommentaryIdCounter] = useState(0);
+  // Removed commentaryIdCounter state
 
   const [currentBowlerName, setCurrentBowlerName] = useState<string | null>(null);
   // Stats for the current bowler's active 6-ball spell for maiden calculation
@@ -71,12 +71,13 @@ export default function CricketPage() {
   const setFieldingTeam = fieldingTeamKey === 'team1' ? setTeam1 : setTeam2;
 
   const addCommentary = useCallback((text: string) => {
+    const newId = crypto.randomUUID(); // Generate unique string ID
     setCommentaryLog(prevLog => [
       ...prevLog,
-      { id: commentaryIdCounter, text, timestamp: new Date().toISOString() },
+      { id: newId, text, timestamp: new Date().toISOString() },
     ]);
-    setCommentaryIdCounter(prev => prev + 1);
-  }, [commentaryIdCounter]);
+    // No need to manage commentaryIdCounter anymore
+  }, []); // Removed commentaryIdCounter from dependencies, setCommentaryLog is stable
 
   const handleSetCurrentBowler = useCallback((name: string) => {
     if (!name.trim()) {
@@ -244,7 +245,7 @@ export default function CricketPage() {
     setTeam2({...initialTeamStateFactory('Team Bravo'), runs: -1 });
     setBattingTeamKey('team1');
     setCommentaryLog([]);
-    setCommentaryIdCounter(0);
+    // Removed setCommentaryIdCounter(0)
     setCurrentBowlerName(null);
     setBallsByCurrentBowlerThisSpell(0);
     setRunsOffBatAgainstCurrentBowlerThisSpell(0);
@@ -254,13 +255,10 @@ export default function CricketPage() {
   const switchInnings = () => {
     if (currentBowlerName && ballsByCurrentBowlerThisSpell > 0 && ballsByCurrentBowlerThisSpell < 6) {
         addCommentary(`${currentBowlerName} finishes their incomplete over due to innings change. Figures may be partial for this spell.`);
-         // Optionally, update bowler's permanent stats for the partial over if desired
          setFieldingTeam(prevFieldingTeam => {
             const bowlerIndex = prevFieldingTeam.bowlers.findIndex(b => b.name === currentBowlerName);
             if (bowlerIndex !== -1) {
-                // This is tricky as a "maiden" on an incomplete over isn't standard
-                // For now, we just acknowledge the change.
-                // If detailed stats for incomplete overs were needed, more logic would go here.
+                // Logic for incomplete overs can be complex if detailed stats are needed
             }
             return prevFieldingTeam;
         });
@@ -274,15 +272,11 @@ export default function CricketPage() {
       addCommentary(`--- ${team2.name} starts their innings ---`);
       toast({ title: "Innings Changed", description: `${team2.name} are now batting.`});
     } else {
-       // This implies team2 finished batting or it was a one-innings game and team1 is batting again (unlikely in this setup)
-      // For now, let's assume it means match might be over or second innings for team1 (if it were a test match type structure)
-      // For T20, if team2 finishes, it's usually game over.
       const gameFinished = team2.runs !== -1 && (team2.wickets >=10 || team2.overs >= MAX_OVERS || team1.runs < team2.runs);
       if(gameFinished) {
         addCommentary(`--- Match Concluded ---`);
         toast({ title: "Match Concluded", description: "Review scores for the result."});
       } else {
-        // This case is less likely for typical T20. Could be resetting for another match or error.
         addCommentary(`--- Innings switch requested for ${team1.name}. Ensure match context is correct. ---`);
         toast({ title: "Match Status", description: "Consider match end or further innings."});
         setBattingTeamKey('team1'); 
