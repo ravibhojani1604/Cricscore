@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { Header } from '@/components/layout/header';
 import { ScoreDisplay } from '@/components/features/score-display';
 import { StatisticsTracker } from '@/components/features/statistics-tracker';
@@ -126,6 +126,16 @@ export default function CricketPage() {
   const [isHistoryDialogOpen, setIsHistoryDialogOpen] = useState(false);
   const [hasMatchBeenSaved, setHasMatchBeenSaved] = useState(false);
 
+  const [pendingToast, setPendingToast] = useState<Omit<Parameters<typeof toast>[0], 'id'> | null>(null);
+
+  useEffect(() => {
+    if (pendingToast) {
+      toast(pendingToast);
+      setPendingToast(null); // Clear after showing
+    }
+  }, [pendingToast, toast]);
+
+
   const currentBattingTeam = battingTeamKey === 'team1' ? team1 : team2;
   const setCurrentBattingTeam = battingTeamKey === 'team1' ? setTeam1 : setTeam2;
   
@@ -187,12 +197,12 @@ export default function CricketPage() {
     
     const existingBowlerInList = fieldingTeam.bowlers.find(b => b.name.toLowerCase() === name.trim().toLowerCase());
 
-    if (fieldingTeam.bowlers.length >= MAX_BOWLERS_PER_TEAM_LIST && !existingBowlerInList) {
-         if (currentBowlerId) { 
-             toast({ title: "Bowler Slot Full", description: `Current bowler: ${currentBowler?.name}. Clear current bowler to add a new one. Only ${MAX_BOWLERS_PER_TEAM_LIST} active bowler allowed.`, variant: "destructive"});
-         } else {
-              toast({ title: "Bowler Slot Full", description: `The bowler list is full. Clear to add a new one if needed, or select from existing. Current: ${fieldingTeam.bowlers.map(b=>b.name).join(', ')}.`, variant: "destructive"});
-         }
+    if (fieldingTeam.bowlers.length >= MAX_BOWLERS_PER_TEAM_LIST && !existingBowlerInList && !currentBowlerId) {
+          toast({ title: "Bowler Slot Full", description: `The bowler list is full. Clear to add a new one if needed, or select from existing. Max ${MAX_BOWLERS_PER_TEAM_LIST} active bowlers.`, variant: "destructive"});
+         return;
+    }
+     if (fieldingTeam.bowlers.length >= MAX_BOWLERS_PER_TEAM_LIST && !existingBowlerInList && currentBowlerId) {
+          toast({ title: "Bowler Slot Full", description: `Current bowler: ${currentBowler?.name}. Clear current bowler to add a new one. Max ${MAX_BOWLERS_PER_TEAM_LIST} active bowlers.`, variant: "destructive"});
          return;
     }
 
@@ -206,9 +216,17 @@ export default function CricketPage() {
       }
     } else { 
        let updatedBowlers = [...fieldingTeam.bowlers];
-       if (updatedBowlers.length >= MAX_BOWLERS_PER_TEAM_LIST) {
-         updatedBowlers = []; // Clear the list if it's full and a new name is added
+       // If list is full (and currentBowlerId means one is active), replace the current one.
+       // If no currentBowlerId (list is full but none selected), it means we shouldn't add. (Handled by early return)
+       if (updatedBowlers.length >= MAX_BOWLERS_PER_TEAM_LIST && currentBowlerId) {
+         updatedBowlers = updatedBowlers.filter(b => b.id !== currentBowlerId); 
+       } else if (updatedBowlers.length >= MAX_BOWLERS_PER_TEAM_LIST && !currentBowlerId) {
+           // This case should be caught by earlier checks, but as a safeguard:
+           toast({ title: "Cannot Add Bowler", description: "Bowler list is full and no bowler is active to replace.", variant: "destructive"});
+           return;
        }
+
+
       const newBowler: Bowler = { 
         id: crypto.randomUUID(), 
         name: name.trim(), 
@@ -292,10 +310,16 @@ export default function CricketPage() {
         (onStrikeBatterId ? (currentBattingTeam.batters.find(b => b.id === onStrikeBatterId && !b.isOut) ? 1 : 0) : 0) +
         (offStrikeBatterId ? (currentBattingTeam.batters.find(b => b.id === offStrikeBatterId && !b.isOut && b.id !== onStrikeBatterId) ? 1 : 0) : 0);
 
-    if (activeBattersOnField >= 2) {
-        toast({ title: "Two Batters Active", description: "Two batters are already selected and not out. Wait for a wicket or deselect a batter to add a new one.", variant: "destructive" });
-        return;
+    if (activeBattersOnField >= 2 && !(onStrikeBatterId && offStrikeBatterId)) { // Only block if not replacing one of two active
+        const onStrikeIsOut = onStrikeBatterId ? currentBattingTeam.batters.find(b => b.id === onStrikeBatterId)?.isOut : true;
+        const offStrikeIsOut = offStrikeBatterId ? currentBattingTeam.batters.find(b => b.id === offStrikeBatterId)?.isOut : true;
+
+        if(!onStrikeIsOut && !offStrikeIsOut && onStrikeBatterId && offStrikeBatterId) {
+             toast({ title: "Two Batters Active", description: "Two batters are already selected and not out. Wait for a wicket or deselect a batter to add a new one.", variant: "destructive" });
+             return;
+        }
     }
+
 
     setCurrentBattingTeam(prevTeam => {
       const nameExists = prevTeam.batters.some(b => b.name.toLowerCase() === name.trim().toLowerCase());
@@ -334,6 +358,20 @@ export default function CricketPage() {
       toast({ title: "Invalid Selection", description: "Batter is out or does not exist.", variant: "destructive" });
       return;
     }
+
+    const activeBattersCount = (onStrikeBatterId && onStrikeBatterId !== batterId ? 1 : 0) + (offStrikeBatterId && offStrikeBatterId !== batterId ? 1 : 0);
+     if (activeBattersCount >= 2 && 
+        ((position === 'onStrike' && batterId !== onStrikeBatterId) || (position === 'offStrike' && batterId !== offStrikeBatterId))) {
+         // Check if we are replacing an existing batter or adding a third one
+         const currentOnStrike = onStrikeBatterId ? currentBattingTeam.batters.find(b=> b.id === onStrikeBatterId && !b.isOut) : null;
+         const currentOffStrike = offStrikeBatterId ? currentBattingTeam.batters.find(b=> b.id === offStrikeBatterId && !b.isOut) : null;
+
+         if(currentOnStrike && currentOffStrike && batterId !== onStrikeBatterId && batterId !== offStrikeBatterId){
+            toast({ title: "Two Batters Active", description: "Cannot select a third active batter.", variant: "destructive" });
+            return;
+         }
+    }
+
 
     if (position === 'onStrike') {
       if (batterId === offStrikeBatterId && offStrikeBatterId !== null) { 
@@ -436,11 +474,9 @@ export default function CricketPage() {
       setRunsOffBatAgainstCurrentBowlerThisSpell(prev => prev + runsScored);
     }
     
-    // Score in commentary might be slightly stale due to async state. For critical display, use prevTeam values.
     const finalCommentary = `${commentaryText} Score: ${currentBattingTeam.runs + runsScored}/${currentBattingTeam.wickets}`;
     setCommentaryLog(prevLog => prevLog.map(c => c.id === commentaryId ? {...c, text: finalCommentary} : c));
 
-    // Strike rotation for odd runs (not extras) if not end of over
     if (runsScored % 2 !== 0 && !isExtraRun && currentBattingTeam.balls < 5 && currentBattingTeam.overs < MAX_OVERS && currentBattingTeam.wickets < MAX_WICKETS) { 
       handleSwapStrike();
     }
@@ -502,7 +538,7 @@ export default function CricketPage() {
 
   }, [currentBattingTeam, setCurrentBattingTeam, addCommentary, toast, currentBowlerId, setFieldingTeam, onStrikeBatterId, backupStateForUndo, fieldingTeam.bowlers]);
 
-  const handleNextBall = useCallback((isLegalDelivery: boolean) => {
+const handleNextBall = useCallback((isLegalDelivery: boolean) => {
     if (currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= MAX_OVERS) {
       setCanUndo(false);
       return;
@@ -532,7 +568,7 @@ export default function CricketPage() {
       setCommentaryLog(prevLog => prevLog.map(c => c.id === commentaryId ? { ...c, text: dotBallCommentaryText } : c));
     }
 
-    let overCompletedThisBall = false;
+    let overCompletedByThisDelivery = false;
 
     if (isLegalDelivery) {
       setCurrentBattingTeam(prevTeam => {
@@ -543,11 +579,12 @@ export default function CricketPage() {
         let newOvers = prevTeam.overs;
 
         if (newBalls >= 6) {
-          overCompletedThisBall = true;
+          overCompletedByThisDelivery = true; // Set flag for outer scope use
           newOvers += 1;
           newBalls = 0;
           if (newOvers >= MAX_OVERS && prevTeam.wickets < MAX_WICKETS) {
             addCommentary(`Innings ended for ${prevTeam.name} after ${MAX_OVERS} overs. Final Score: ${prevTeam.runs}/${prevTeam.wickets}`, false);
+            // Consider using setPendingToast for this as well if it causes issues
             toast({ title: "Innings Over!", description: `${prevTeam.name} completed ${MAX_OVERS} overs.` });
             setCanUndo(false);
           }
@@ -557,9 +594,12 @@ export default function CricketPage() {
     }
 
     if (currentBowlerId) {
-      const activeBowlerId = currentBowlerId; // Capture for use in functional updates
+      const activeBowlerId = currentBowlerId; 
       
-      if (isLegalDelivery) { // Only update bowler's ball count for legal deliveries
+      if (isLegalDelivery) {
+        const bowlerNameForToast = fieldingTeam.bowlers.find(b => b.id === activeBowlerId)?.name || "Bowler";
+        const scoreForToast = { runs: currentBattingTeam.runs, wickets: currentBattingTeam.wickets };
+
         setBallsByCurrentBowlerThisSpell(prevSpellBalls => {
           const newSpellBalls = prevSpellBalls + 1;
   
@@ -571,13 +611,12 @@ export default function CricketPage() {
             let bowlerStats = { ...updatedBowlers[bowlerIndex] };
             bowlerStats.totalBallsBowled += 1;
   
-            if (overCompletedThisBall) {
-              // Runs for maiden check is runsOffBatAgainstCurrentBowlerThisSpell (from closure after handleAddRuns)
-              if (newSpellBalls === 6 && runsOffBatAgainstCurrentBowlerThisSpell === 0) {
+            if (overCompletedByThisDelivery && newSpellBalls === 6) { // Check if this ball (newSpellBalls) completes the over (6 balls)
+              if (runsOffBatAgainstCurrentBowlerThisSpell === 0) {
                 bowlerStats.maidens += 1;
               }
               let overSummary = `Over ${Math.floor(bowlerStats.totalBallsBowled / 6)} completed by ${bowlerStats.name}.`;
-              if (newSpellBalls === 6 && runsOffBatAgainstCurrentBowlerThisSpell === 0) {
+              if (runsOffBatAgainstCurrentBowlerThisSpell === 0) {
                 overSummary += ` It's a MAIDEN!`;
               }
               const bowlerOversFig = formatOversDisplay(bowlerStats.totalBallsBowled);
@@ -588,30 +627,32 @@ export default function CricketPage() {
             return { ...prevFieldingTeam, bowlers: updatedBowlers };
           });
   
-          if (overCompletedThisBall) {
-            const bowlerNameForToast = fieldingTeam.bowlers.find(b => b.id === activeBowlerId)?.name || "Bowler";
-            toast({
-              title: "Over Complete!",
-              description: `${bowlerNameForToast} has finished their over. Score: ${currentBattingTeam.runs}/${currentBattingTeam.wickets}. Select next bowler.`
-            });
-            addCommentary(`End of the over by ${bowlerNameForToast}. Score: ${currentBattingTeam.runs}/${currentBattingTeam.wickets}. A new bowler is needed.`, false);
-  
-            setCurrentBowlerId(null);
-            setRunsOffBatAgainstCurrentBowlerThisSpell(0);
-            setCanUndo(false);
-            return 0; // Reset balls for spell
+          if (overCompletedByThisDelivery && newSpellBalls === 6) {
+             setPendingToast({
+                title: "Over Complete!",
+                description: `${bowlerNameForToast} has finished their over. Score: ${scoreForToast.runs}/${scoreForToast.wickets}. Select next bowler.`
+             });
+            // Defer state updates that happen after over completion to outside this functional update
+            return 0; 
           }
           return newSpellBalls;
         });
+
+        // If over was completed, call these state setters here
+        if (overCompletedByThisDelivery && (ballsByCurrentBowlerThisSpell + 1) === 6) {
+            setCurrentBowlerId(null);
+            setRunsOffBatAgainstCurrentBowlerThisSpell(0);
+            setCanUndo(false);
+        }
+
       }
-    } else { // No currentBowlerId
-      if (overCompletedThisBall && isLegalDelivery) { // isLegalDelivery check ensures team over advances
+    } else { 
+      if (overCompletedByThisDelivery && isLegalDelivery) { 
          addCommentary(`Team Over ${currentBattingTeam.overs + 1} completed. Score: ${currentBattingTeam.runs}/${currentBattingTeam.wickets}. No bowler selected for next over.`, false);
       }
     }
     
-    // Strike rotation if over completed (and it was a legal delivery) and match not ended
-    if (isLegalDelivery && overCompletedThisBall && currentBattingTeam.overs < MAX_OVERS && currentBattingTeam.wickets < MAX_WICKETS) {
+    if (isLegalDelivery && overCompletedByThisDelivery && currentBattingTeam.overs < MAX_OVERS && currentBattingTeam.wickets < MAX_WICKETS) {
       if (onStrikeBatterId && offStrikeBatterId) {
         handleSwapStrike();
       }
@@ -620,12 +661,12 @@ export default function CricketPage() {
   }, [
     currentBattingTeam, setCurrentBattingTeam,
     fieldingTeam, setFieldingTeam, 
-    addCommentary, toast,
+    addCommentary, toast, // toast is still a dep for other toasts, or remove if all use setPendingToast
     currentBowlerId, setCurrentBowlerId,
-    setBallsByCurrentBowlerThisSpell, // Keep in deps as we use its functional update form
-    runsOffBatAgainstCurrentBowlerThisSpell, setRunsOffBatAgainstCurrentBowlerThisSpell, // Keep for read in maiden and reset
+    ballsByCurrentBowlerThisSpell, setBallsByCurrentBowlerThisSpell,
+    runsOffBatAgainstCurrentBowlerThisSpell, setRunsOffBatAgainstCurrentBowlerThisSpell,
     lastActionState, backupStateForUndo,
-    onStrikeBatterId, offStrikeBatterId, handleSwapStrike, onStrikeBatter // onStrikeBatter for dot ball commentary
+    onStrikeBatterId, offStrikeBatterId, handleSwapStrike, onStrikeBatter, setPendingToast
   ]);
 
   const handleUndoLastAction = () => {
@@ -710,14 +751,11 @@ export default function CricketPage() {
       addCommentary(`--- Innings Break: ${previousBattingTeamName} scored ${previousBattingTeamRuns}/${previousBattingTeamWickets} (Extras: ${previousBattingTeamExtras}). ${nextBattingTeamObject.name} to bat. Target: ${previousBattingTeamRuns + 1} ---`, false);
       toast({ title: "Innings Changed", description: `${nextBattingTeamObject.name} are now batting. ${team1.name} will field.`});
     } else { 
-      // This case typically means match ended or some other transition.
       const gameFinished = team2.runs !== -1 && (team2.wickets >= MAX_WICKETS || team2.overs >= MAX_OVERS || (isTeam1AllOutOrOversDone && team2.runs > team1.runs && team1.runs > -1));
       if(gameFinished) {
         addCommentary(`--- Match Concluded: ${previousBattingTeamName} scored ${previousBattingTeamRuns}/${previousBattingTeamWickets} (Extras: ${previousBattingTeamExtras}) ---`, false);
         toast({ title: "Match Concluded", description: "Review scores for the result."});
       } else {
-         // This scenario (switching from team2 back to team1 or other complex flow) is less common in simple T20.
-         // For now, just log the change.
         addCommentary(`--- Innings Update: ${previousBattingTeamName} scored ${previousBattingTeamRuns}/${previousBattingTeamWickets} (Extras: ${previousBattingTeamExtras}). ---`, false);
         toast({ title: "Innings Update", description: `Match status updated.`});
       }
@@ -745,7 +783,7 @@ export default function CricketPage() {
 
   if (battingTeamKey === 'team1') {
     // Match doesn't usually end when team1 completes their innings.
-  } else { // battingTeamKey === 'team2'
+  } else { 
     if (team1.runs === -1) { 
         if (isTeam2InningsCompleted) { 
             matchEnded = true; 
@@ -818,14 +856,14 @@ export default function CricketPage() {
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <Header />
       <main className="flex-grow container mx-auto p-4 sm:p-6 md:p-8 space-y-8">
-        <div className="flex flex-wrap justify-between items-center gap-4">
+        <div className="flex flex-wrap justify-between items-center gap-4 border-b pb-6 mb-6">
             <h2 className="text-3xl font-bold text-primary tracking-tight">Current Match</h2>
             <div className="flex flex-wrap items-center gap-2">
                 { matchCanStartSecondInnings && !matchEnded && (
                     <Button onClick={switchInnings} variant="outline" className="border-accent text-accent-foreground hover:bg-accent hover:text-accent-foreground shadow-sm">Start {team2.name}'s Innings</Button>
                 )}
                 { matchEnded && (
-                    <p className="text-xl font-semibold text-primary px-2 py-1 rounded-md bg-primary/10">{matchResultText || "Match Ended!"}</p>
+                    <p className="text-xl font-semibold text-primary px-3 py-1.5 rounded-md bg-primary/10 shadow-sm">{matchResultText || "Match Ended!"}</p>
                 )}
                 <Button onClick={() => setIsHistoryDialogOpen(true)} variant="outline" className="shadow-sm">
                     <History className="mr-2 h-4 w-4" /> View History
