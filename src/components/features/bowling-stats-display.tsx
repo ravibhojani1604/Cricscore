@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { FC } from 'react';
@@ -11,9 +12,10 @@ import {
   TableCaption,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { ShieldCheck } from 'lucide-react'; // Icon for bowling stats
+import { ShieldCheck } from 'lucide-react';
 
 interface Bowler {
+  id: string; // Added ID
   name: string;
   totalBallsBowled: number;
   maidens: number;
@@ -64,7 +66,7 @@ export const BowlingStatsDisplay: FC<BowlingStatsDisplayProps> = ({ bowlers, tea
             </TableHeader>
             <TableBody>
               {bowlers.map((bowler) => (
-                <TableRow key={bowler.name}>
+                <TableRow key={bowler.id}> {/* Changed key to bowler.id */}
                   <TableCell className="font-medium">{bowler.name}</TableCell>
                   <TableCell className="text-center">{formatOvers(bowler.totalBallsBowled)}</TableCell>
                   <TableCell className="text-center">{bowler.maidens}</TableCell>
@@ -81,3 +83,5 @@ export const BowlingStatsDisplay: FC<BowlingStatsDisplayProps> = ({ bowlers, tea
     </Card>
   );
 };
+
+    
