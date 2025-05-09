@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
@@ -95,7 +96,7 @@ export interface StatisticsTrackerProps {
 const MAX_OVERS = 20;
 const MAX_WICKETS = 10;
 const MAX_BATTERS_PER_TEAM = 11;
-const MAX_FIELDING_TEAM_BOWLERS = 11; // Increased from 1
+const MAX_FIELDING_TEAM_BOWLERS = 11; 
 
 const formatOversDisplay = (totalBalls: number): string => {
   const overs = Math.floor(totalBalls / 6);
@@ -201,11 +202,11 @@ export default function CricketPage() {
   const handleAddOrSelectBowlerByName = useCallback((name: string) => {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      toast({ title: "Invalid Bowler Name", description: "Bowler name cannot be empty.", variant: "destructive"});
+      setPendingToast({ title: "Invalid Bowler Name", description: "Bowler name cannot be empty.", variant: "destructive"});
       return;
     }
     if (currentBowlerId && ballsByCurrentBowlerThisSpell > 0 && ballsByCurrentBowlerThisSpell < 6) {
-        toast({ title: "Over in Progress", description: "Cannot change bowler mid-over unless the current over is complete.", variant: "destructive" });
+        setPendingToast({ title: "Over in Progress", description: "Cannot change bowler mid-over unless the current over is complete.", variant: "destructive" });
         return;
     }
     
@@ -213,7 +214,7 @@ export default function CricketPage() {
 
     if (existingBowlerInList) { // Selecting an existing bowler
       if (lastBowlerWhoCompletedOver && existingBowlerInList.id === lastBowlerWhoCompletedOver) {
-        toast({ title: "Consecutive Overs", description: `${existingBowlerInList.name} cannot bowl consecutive overs. Please select a different bowler.`, variant: "destructive" });
+        setPendingToast({ title: "Consecutive Overs", description: `${existingBowlerInList.name} cannot bowl consecutive overs. Please select a different bowler.`, variant: "destructive" });
         return;
       }
       if (currentBowlerId !== existingBowlerInList.id) {
@@ -224,12 +225,10 @@ export default function CricketPage() {
       }
     } else { // Adding a new bowler
       if (fieldingTeam.bowlers.length >= MAX_FIELDING_TEAM_BOWLERS) {
-        toast({ title: "Bowler List Full", description: `Cannot add more than ${MAX_FIELDING_TEAM_BOWLERS} bowlers to ${fieldingTeam.name}'s list.`, variant: "destructive"});
+        setPendingToast({ title: "Bowler List Full", description: `Cannot add more than ${MAX_FIELDING_TEAM_BOWLERS} bowlers to ${fieldingTeam.name}'s list.`, variant: "destructive"});
         return;
       }
-      // Cannot add a new bowler if they would bowl consecutively (should not happen if name is new, but defensive)
-      // This check is more relevant when selecting an existing bowler by name, handled above.
-
+      
       const newBowler: Bowler = { 
         id: crypto.randomUUID(), 
         name: trimmedName, 
@@ -246,17 +245,17 @@ export default function CricketPage() {
       addCommentary(`${newBowler.name} is the new bowler for ${fieldingTeam.name}.`, false); 
     }
     setCanUndo(false); 
-  }, [fieldingTeam, addCommentary, toast, setFieldingTeam, currentBowlerId, ballsByCurrentBowlerThisSpell, lastBowlerWhoCompletedOver, fieldingTeam.name]);
+  }, [fieldingTeam, addCommentary, setFieldingTeam, currentBowlerId, ballsByCurrentBowlerThisSpell, lastBowlerWhoCompletedOver, fieldingTeam.name, MAX_FIELDING_TEAM_BOWLERS]);
 
   const handleSetCurrentBowlerById = useCallback((bowlerId: string) => {
      if (currentBowlerId && ballsByCurrentBowlerThisSpell > 0 && ballsByCurrentBowlerThisSpell < 6 && currentBowlerId !== bowlerId) {
-        toast({ title: "Over in Progress", description: "Cannot change bowler mid-over. Complete the current over first.", variant: "destructive" });
+        setPendingToast({ title: "Over in Progress", description: "Cannot change bowler mid-over. Complete the current over first.", variant: "destructive" });
         return;
     }
     const bowler = fieldingTeam.bowlers.find(b => b.id === bowlerId);
     if (bowler) {
         if (lastBowlerWhoCompletedOver && bowlerId === lastBowlerWhoCompletedOver) {
-          toast({ title: "Consecutive Overs", description: `${bowler.name} cannot bowl consecutive overs. Please select a different bowler.`, variant: "destructive" });
+          setPendingToast({ title: "Consecutive Overs", description: `${bowler.name} cannot bowl consecutive overs. Please select a different bowler.`, variant: "destructive" });
           return;
         }
         if (currentBowlerId !== bowlerId) { 
@@ -267,16 +266,16 @@ export default function CricketPage() {
         }
     }
     setCanUndo(false);
-  }, [fieldingTeam.bowlers, addCommentary, currentBowlerId, fieldingTeam.name, ballsByCurrentBowlerThisSpell, toast, lastBowlerWhoCompletedOver]);
+  }, [fieldingTeam.bowlers, addCommentary, currentBowlerId, fieldingTeam.name, ballsByCurrentBowlerThisSpell, lastBowlerWhoCompletedOver]);
 
   const handleEditBowlerName = useCallback((bowlerIdToEdit: string, newName: string) => {
     if (!newName.trim()) {
-      toast({ title: "Invalid Name", description: "Bowler name cannot be empty.", variant: "destructive" });
+      setPendingToast({ title: "Invalid Name", description: "Bowler name cannot be empty.", variant: "destructive" });
       return;
     }
     
     if (ballsByCurrentBowlerThisSpell > 0 && currentBowlerId === bowlerIdToEdit) {
-        toast({ title: "Cannot Edit Bowler", description: "Bowler name cannot be changed mid-over if they are currently bowling. Wait for the over to complete.", variant: "destructive"});
+        setPendingToast({ title: "Cannot Edit Bowler", description: "Bowler name cannot be changed mid-over if they are currently bowling. Wait for the over to complete.", variant: "destructive"});
         return;
     }
 
@@ -284,7 +283,7 @@ export default function CricketPage() {
     setFieldingTeam(prevTeam => {
       const bowlerExistsWithNewName = prevTeam.bowlers.some(b => b.name.toLowerCase() === newName.trim().toLowerCase() && b.id !== bowlerIdToEdit);
       if (bowlerExistsWithNewName) {
-          toast({title: "Duplicate Name", description: "Another bowler already has this name.", variant: "destructive"});
+          setPendingToast({title: "Duplicate Name", description: "Another bowler already has this name.", variant: "destructive"});
           return prevTeam; 
       }
       const updatedBowlers = prevTeam.bowlers.map(b => {
@@ -301,15 +300,15 @@ export default function CricketPage() {
       return { ...prevTeam, bowlers: updatedBowlers };
     });
      setCanUndo(false); 
-  }, [setFieldingTeam, addCommentary, toast, currentBowlerId, ballsByCurrentBowlerThisSpell]);
+  }, [setFieldingTeam, addCommentary, currentBowlerId, ballsByCurrentBowlerThisSpell]);
 
   const handleAddBatter = useCallback((name: string) => {
     if (!name.trim()) {
-      toast({ title: "Invalid Batter Name", description: "Batter name cannot be empty.", variant: "destructive" });
+      setPendingToast({ title: "Invalid Batter Name", description: "Batter name cannot be empty.", variant: "destructive" });
       return;
     }
     if (currentBattingTeam.batters.length >= MAX_BATTERS_PER_TEAM) {
-      toast({ title: "Lineup Full", description: `Cannot add more than ${MAX_BATTERS_PER_TEAM} batters to ${currentBattingTeam.name}.`, variant: "destructive" });
+      setPendingToast({ title: "Lineup Full", description: `Cannot add more than ${MAX_BATTERS_PER_TEAM} batters to ${currentBattingTeam.name}.`, variant: "destructive" });
       return;
     }
     
@@ -322,7 +321,7 @@ export default function CricketPage() {
         const offStrikeIsOut = offStrikeBatterId ? currentBattingTeam.batters.find(b => b.id === offStrikeBatterId)?.isOut : true;
 
         if(!onStrikeIsOut && !offStrikeIsOut && onStrikeBatterId && offStrikeBatterId) {
-             toast({ title: "Two Batters Active", description: "Two batters are already selected and not out. Wait for a wicket or deselect a batter to add a new one.", variant: "destructive" });
+             setPendingToast({ title: "Two Batters Active", description: "Two batters are already selected and not out. Wait for a wicket or deselect a batter to add a new one.", variant: "destructive" });
              return;
         }
     }
@@ -331,7 +330,7 @@ export default function CricketPage() {
     setCurrentBattingTeam(prevTeam => {
       const nameExists = prevTeam.batters.some(b => b.name.toLowerCase() === name.trim().toLowerCase());
       if (nameExists) {
-        toast({ title: "Duplicate Batter Name", description: "A batter with this name already exists.", variant: "destructive" });
+        setPendingToast({ title: "Duplicate Batter Name", description: "A batter with this name already exists.", variant: "destructive" });
         return prevTeam;
       }
       const newBatter: Batter = {
@@ -357,12 +356,12 @@ export default function CricketPage() {
       return { ...prevTeam, batters: updatedBatters };
     });
     setCanUndo(false);
-  }, [setCurrentBattingTeam, toast, addCommentary, onStrikeBatterId, offStrikeBatterId, currentBattingTeam.batters, currentBattingTeam.name]);
+  }, [setCurrentBattingTeam, addCommentary, onStrikeBatterId, offStrikeBatterId, currentBattingTeam.batters, currentBattingTeam.name, MAX_BATTERS_PER_TEAM]);
 
   const handleSelectBatter = useCallback((position: 'onStrike' | 'offStrike', batterId: string) => {
     const selectedBatter = currentBattingTeam.batters.find(b => b.id === batterId);
     if (!selectedBatter || selectedBatter.isOut) {
-      toast({ title: "Invalid Selection", description: "Batter is out or does not exist.", variant: "destructive" });
+      setPendingToast({ title: "Invalid Selection", description: "Batter is out or does not exist.", variant: "destructive" });
       return;
     }
 
@@ -373,7 +372,7 @@ export default function CricketPage() {
          const currentOffStrike = offStrikeBatterId ? currentBattingTeam.batters.find(b=> b.id === offStrikeBatterId && !b.isOut) : null;
 
          if(currentOnStrike && currentOffStrike && batterId !== onStrikeBatterId && batterId !== offStrikeBatterId){
-            toast({ title: "Two Batters Active", description: "Cannot select a third active batter.", variant: "destructive" });
+            setPendingToast({ title: "Two Batters Active", description: "Cannot select a third active batter.", variant: "destructive" });
             return;
          }
     }
@@ -381,21 +380,21 @@ export default function CricketPage() {
 
     if (position === 'onStrike') {
       if (batterId === offStrikeBatterId && offStrikeBatterId !== null) { 
-            toast({ title: "Invalid Selection", description: "Batter cannot be at both ends.", variant: "destructive" });
+            setPendingToast({ title: "Invalid Selection", description: "Batter cannot be at both ends.", variant: "destructive" });
             return;
       }
       setOnStrikeBatterId(batterId);
       addCommentary(`${selectedBatter.name} is now on strike.`, false);
     } else { 
       if (batterId === onStrikeBatterId && onStrikeBatterId !== null) { 
-            toast({ title: "Invalid Selection", description: "Batter cannot be at both ends.", variant: "destructive" });
+            setPendingToast({ title: "Invalid Selection", description: "Batter cannot be at both ends.", variant: "destructive" });
             return;
       }
       setOffStrikeBatterId(batterId);
       addCommentary(`${selectedBatter.name} is at the non-striker's end.`, false);
     }
     setCanUndo(false);
-  }, [currentBattingTeam.batters, onStrikeBatterId, offStrikeBatterId, toast, addCommentary]);
+  }, [currentBattingTeam.batters, onStrikeBatterId, offStrikeBatterId, addCommentary]);
 
   const handleSwapStrike = useCallback(() => {
     if (!onStrikeBatterId || !offStrikeBatterId) {
@@ -420,8 +419,8 @@ export default function CricketPage() {
 
   const handleAddRuns = useCallback((runsScored: number, isExtraRun: boolean = false) => {
     if (currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= MAX_OVERS || !currentBowlerId || !onStrikeBatterId) {
-      if(!currentBowlerId) toast({title: "Bowler Needed", description: "Please select a bowler.", variant: "destructive"});
-      if(!onStrikeBatterId) toast({title: "Striker Needed", description: "Please select the batter on strike.", variant: "destructive"});
+      if(!currentBowlerId) setPendingToast({title: "Bowler Needed", description: "Please select a bowler.", variant: "destructive"});
+      if(!onStrikeBatterId) setPendingToast({title: "Striker Needed", description: "Please select the batter on strike.", variant: "destructive"});
       return;
     }
     
@@ -487,13 +486,13 @@ export default function CricketPage() {
       handleSwapStrike();
     }
 
-  }, [currentBattingTeam, setCurrentBattingTeam, addCommentary, currentBowlerId, setFieldingTeam, onStrikeBatterId, handleSwapStrike, backupStateForUndo, toast, fieldingTeam.bowlers]);
+  }, [currentBattingTeam, setCurrentBattingTeam, addCommentary, currentBowlerId, setFieldingTeam, onStrikeBatterId, handleSwapStrike, backupStateForUndo, fieldingTeam.bowlers]);
 
 
   const handleAddWicket = useCallback(() => {
     if (currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= MAX_OVERS || !currentBowlerId || !onStrikeBatterId) {
-      if(!currentBowlerId) toast({title: "Bowler Needed", description: "Please select a bowler.", variant: "destructive"});
-      if(!onStrikeBatterId) toast({title: "Striker Needed", description: "Please select the batter on strike.", variant: "destructive"});
+      if(!currentBowlerId) setPendingToast({title: "Bowler Needed", description: "Please select a bowler.", variant: "destructive"});
+      if(!onStrikeBatterId) setPendingToast({title: "Striker Needed", description: "Please select the batter on strike.", variant: "destructive"});
       return;
     }
 
@@ -542,7 +541,7 @@ export default function CricketPage() {
     
     setOnStrikeBatterId(null); 
 
-  }, [currentBattingTeam, setCurrentBattingTeam, addCommentary, toast, currentBowlerId, setFieldingTeam, onStrikeBatterId, backupStateForUndo, fieldingTeam.bowlers, setPendingToast]);
+  }, [currentBattingTeam, setCurrentBattingTeam, addCommentary, currentBowlerId, setFieldingTeam, onStrikeBatterId, backupStateForUndo, fieldingTeam.bowlers]);
 
 const handleNextBall = useCallback((isLegalDelivery: boolean) => {
     if (currentBattingTeam.wickets >= MAX_WICKETS || currentBattingTeam.overs >= MAX_OVERS) {
@@ -550,11 +549,11 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
       return;
     }
     if (!currentBowlerId && currentBattingTeam.wickets < MAX_WICKETS) {
-      if (!currentBowlerId) toast({ title: "Bowler Needed", description: "Please select a bowler.", variant: "destructive" });
+      if (!currentBowlerId) setPendingToast({ title: "Bowler Needed", description: "Please select a bowler.", variant: "destructive" });
       return;
     }
     if (!onStrikeBatterId && currentBattingTeam.wickets < MAX_WICKETS) {
-       toast({ title: "Striker Needed", description: "Please select the batter on strike.", variant: "destructive" });
+       setPendingToast({ title: "Striker Needed", description: "Please select the batter on strike.", variant: "destructive" });
        return;
     }
 
@@ -667,13 +666,13 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
     ballsByCurrentBowlerThisSpell, setBallsByCurrentBowlerThisSpell,
     runsOffBatAgainstCurrentBowlerThisSpell, setRunsOffBatAgainstCurrentBowlerThisSpell,
     lastActionState, backupStateForUndo,
-    onStrikeBatterId, offStrikeBatterId, handleSwapStrike, onStrikeBatter, setPendingToast, toast,
+    onStrikeBatterId, offStrikeBatterId, handleSwapStrike, onStrikeBatter, 
     lastBowlerWhoCompletedOver, setLastBowlerWhoCompletedOver
   ]);
 
   const handleUndoLastAction = () => {
     if (!canUndo || !lastActionState) {
-      toast({ title: "Cannot Undo", description: "No action to undo or action is not undoable.", variant: "destructive" });
+      setPendingToast({ title: "Cannot Undo", description: "No action to undo or action is not undoable.", variant: "destructive" });
       return;
     }
 
@@ -695,7 +694,7 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
 
     setLastActionState(null);
     setCanUndo(false);
-    toast({ title: "Action Undone", description: "The last recorded action has been reverted." });
+    setPendingToast({ title: "Action Undone", description: "The last recorded action has been reverted." });
   };
 
 
@@ -721,7 +720,7 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
     setLastActionState(null);
     setCanUndo(false);
     setHasMatchBeenSaved(false);
-    toast({ title: "Match Reset", description: "The match has been reset to its initial state."});
+    setPendingToast({ title: "Match Reset", description: "The match has been reset to its initial state."});
   };
   
   const switchInnings = () => {
@@ -753,7 +752,7 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
       }
       setBattingTeamKey('team2'); 
       addCommentary(`--- Innings Break: ${previousBattingTeamName} scored ${previousBattingTeamRuns}/${previousBattingTeamWickets} (Extras: ${previousBattingTeamExtras}). ${nextBattingTeamObject.name} to bat. Target: ${previousBattingTeamRuns + 1} ---`, false);
-      toast({ title: "Innings Changed", description: `${nextBattingTeamObject.name} are now batting. ${team1.name} will field.`});
+      setPendingToast({ title: "Innings Changed", description: `${nextBattingTeamObject.name} are now batting. ${team1.name} will field.`});
     } else { 
       const gameFinished = team2.runs !== -1 && (team2.wickets >= MAX_WICKETS || team2.overs >= MAX_OVERS || (isTeam1AllOutOrOversDone && team2.runs > team1.runs && team1.runs > -1));
       if(gameFinished) {
@@ -836,8 +835,8 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
         }
         return updatedHistory;
     });
-    toast({ title: "Match Saved", description: "The match has been saved to history." });
-  }, [team1, team2, toast]); 
+    setPendingToast({ title: "Match Saved", description: "The match has been saved to history." });
+  }, [team1, team2]); 
 
   useEffect(() => {
     if (matchEnded && matchResultText && !hasMatchBeenSaved) {
@@ -852,7 +851,7 @@ const handleNextBall = useCallback((isLegalDelivery: boolean) => {
       localStorage.removeItem('cricketMatchHistory');
     }
     setMatchHistory([]);
-    toast({ title: "History Cleared", description: "Match history has been cleared." });
+    setPendingToast({ title: "History Cleared", description: "Match history has been cleared." });
     setIsHistoryDialogOpen(false); 
   };
 
