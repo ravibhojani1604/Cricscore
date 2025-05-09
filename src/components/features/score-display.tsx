@@ -1,3 +1,4 @@
+
 import type { FC } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -8,9 +9,20 @@ interface ScoreDisplayProps {
   overs: number;
   balls: number;
   isBatting: boolean;
+  onStrikeBatterName?: string;
+  offStrikeBatterName?: string;
 }
 
-export const ScoreDisplay: FC<ScoreDisplayProps> = ({ teamName, runs, wickets, overs, balls, isBatting }) => {
+export const ScoreDisplay: FC<ScoreDisplayProps> = ({ 
+  teamName, 
+  runs, 
+  wickets, 
+  overs, 
+  balls, 
+  isBatting,
+  onStrikeBatterName,
+  offStrikeBatterName 
+}) => {
   return (
     <Card className={isBatting ? 'border-accent shadow-lg' : ''}>
       <CardHeader>
@@ -26,7 +38,15 @@ export const ScoreDisplay: FC<ScoreDisplayProps> = ({ teamName, runs, wickets, o
         <p className="text-muted-foreground">
           Overs: {overs}.{balls}
         </p>
+        {isBatting && (onStrikeBatterName || offStrikeBatterName) && (
+          <div className="text-xs text-muted-foreground pt-1">
+            {onStrikeBatterName && <p>On Strike: {onStrikeBatterName}*</p>}
+            {offStrikeBatterName && <p>Off Strike: {offStrikeBatterName}</p>}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
 };
+
+    
